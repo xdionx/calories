@@ -11,10 +11,17 @@
 //   });
 
 import { SAMPLE_PROVIDERS } from './sample-menus.js';
+import { mobettahs } from './mobettahs.js';
+import { jurassictacos } from './jurassictacos.js';
+import { littlecaesars } from './littlecaesars.js';
+import { dominos } from './dominos.js';
 
 export const RESTAURANTS = [
+  mobettahs,
+  jurassictacos,
+  littlecaesars,
+  dominos,
   ...SAMPLE_PROVIDERS,
-  // ...add real providers here
 ];
 
 export const getRestaurant = (id) => RESTAURANTS.find((r) => r.id === id);

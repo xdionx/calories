@@ -22,16 +22,20 @@ const matches = (food, q) => {
   return q.toLowerCase().split(/\s+/).every((w) => hay.includes(w));
 };
 
+const slug = (...parts) => parts.filter(Boolean).join(' ').toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
 /**
  * Turn a simple menu item into a Food.
- * item: { name, category?, serving?, grams?, nutrients: { kcal, protein, ... } }
- * Nutrients are per ONE menu item.
+ * item: { id?, name, category?, serving?, grams?, units?, nutrients: { kcal, protein, ... } }
+ * Nutrients are per ONE serving. `units` adds more choices on top of the
+ * serving, e.g. [{ label: 'whole pizza', factor: 8 }] when the serving is a slice.
  */
 export function menuItemToFood(providerId, providerName, item, index) {
-  const units = [{ label: item.serving || '1 item', factor: 1 }];
+  const units = [{ label: item.serving || '1 item', factor: 1 }, ...(item.units || [])];
   if (item.grams > 0) units.push({ label: 'g', factor: 1 / item.grams });
   return {
-    id: `rest:${providerId}:${item.id || index}`,
+    id: `rest:${providerId}:${item.id || slug(item.category, item.name, item.serving) || index}`,
     source: providerName,
     name: item.name,
     brand: providerName,
@@ -78,3 +82,7 @@ export const row = (name, category, kcal, protein, carbs, fat, satFat, sodium, f
   name, category,
   nutrients: { kcal, protein, carbs, fat, satFat, sodium, fiber, sugar, ...extra },
 });
+
+/** Keep only the nutrients that are actual numbers (menus often publish a subset). */
+export const clean = (nutrients) => Object.fromEntries(
+  Object.entries(nutrients).filter(([, v]) => typeof v === 'number' && Number.isFinite(v)));
