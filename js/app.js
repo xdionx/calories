@@ -5,6 +5,7 @@ import { searchFoods, lookupBarcode } from './providers/index.js';
 import { RESTAURANTS, getRestaurant } from './providers/restaurants/index.js';
 import { startScanner } from './scanner.js';
 import * as sync from './sync.js';
+import * as garmin from './garmin.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -64,6 +65,7 @@ function setDate(key) {
   renderDate();
   renderToday();
   if (ui.view === 'trends') renderTrends();
+  garmin.refreshAround(key);
 }
 
 function renderDate() {
@@ -113,6 +115,55 @@ function renderToday() {
   }).join('');
 
   renderMicros(totals);
+  renderBalance();
+}
+
+/* ---------------- Energy balance ---------------- */
+const fmt = (n) => round(n).toLocaleString();
+
+function renderBalance() {
+  const card = $('#balance-card');
+  const bal = store.balanceFor(ui.date);
+  const isToday = ui.date === store.todayKey();
+  if (!bal) {
+    const hint = garmin.hasKey()
+      ? garmin.status.state === 'syncing' ? 'Getting calories burned from Garmin…' : 'No calories burned from Garmin for this day yet.'
+      : 'Connect Garmin in Settings, or type in calories burned, to see your deficit or surplus.';
+    card.innerHTML = `
+      <div class="card-head"><h2>Deficit or surplus</h2></div>
+      <div class="bal-empty"><p class="muted small">${esc(hint)}</p><button class="btn small" data-burn-edit>Add burned</button></div>`;
+    return;
+  }
+  const surplus = bal.net > 0;
+  const label = Math.abs(bal.net) < 1 ? 'balanced' : surplus ? 'surplus' : 'deficit';
+  const src = { garmin: 'Garmin', manual: 'entered by you', health: 'Apple Health' }[bal.source] || bal.source;
+  const restingNote = bal.restingFromGoal
+    ? bal.resting ? `resting ${fmt(bal.resting)} from your goal` : 'no resting burn yet: set it in Settings → Daily goals'
+    : `resting ${fmt(bal.resting)}`;
+  card.innerHTML = `
+    <div class="card-head"><h2>Deficit or surplus${isToday ? ' so far' : ''}</h2><button class="btn ghost small" data-burn-edit>Edit</button></div>
+    <div class="bal-eq">
+      <div><b>${fmt(bal.eaten)}</b><span>eaten</span></div>
+      <div class="op">−</div>
+      <div><b>${fmt(bal.burned)}</b><span>burned</span></div>
+      <div class="op">=</div>
+      <div class="net ${surplus ? 'surplus' : ''}"><b>${fmt(Math.abs(bal.net))}</b><span>kcal ${label}</span></div>
+    </div>
+    <div class="bal-split">Active ${fmt(bal.active)} + ${esc(restingNote)} · ${esc(src)}</div>`;
+}
+
+const burnDlg = { date: null };
+function openBurn(date = ui.date) {
+  burnDlg.date = date;
+  const b = store.burnFor(date);
+  const f = $('#burn-form').elements;
+  f.active.value = b ? b.active : '';
+  f.resting.value = b?.resting ?? '';
+  const [y, m, d] = date.split('-').map(Number);
+  $('#burn-date').textContent = new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) +
+    (b?.source === 'garmin' ? ' · from Garmin. Saving here stops Garmin updating this day.' : '');
+  $('#burn-clear').hidden = !b;
+  $('#burn-dialog').showModal();
 }
 
 function macroBar(m, value, goal) {
@@ -448,6 +499,8 @@ function renderTrends() {
     line.style.bottom = `${chartRect.bottom - barBottom + (goals.kcal / max) * usable}px`;
   });
 
+  renderTrendNet(days.map((d) => d.key));
+
   $('#trend-avg').textContent = logged.length ? `avg ${round(avg('kcal')).toLocaleString()} kcal on ${logged.length} logged day${logged.length > 1 ? 's' : ''}` : 'No days logged yet';
   $('#trend-macros').innerHTML = MACROS.map((m) => macroBar(m, avg(m.key), goals[m.key])).join('') +
     ['fiber', 'sodium'].map((k) => {
@@ -459,14 +512,65 @@ function renderTrends() {
     }).join('');
 }
 
+function renderTrendNet(keys) {
+  const rows = keys.map((key) => ({ key, bal: store.balanceFor(key) })).filter((r) => r.bal && r.bal.eaten > 0);
+  const biggest = Math.max(500, ...rows.map((r) => Math.abs(r.bal.net)));
+  const sum = rows.reduce((s, r) => s + r.bal.net, 0);
+  $('#trend-net-sum').textContent = rows.length
+    ? `${fmt(Math.abs(sum))} kcal ${sum > 0 ? 'surplus' : 'deficit'} over ${rows.length} day${rows.length > 1 ? 's' : ''} (≈ ${(Math.abs(sum) / 3500).toFixed(1)} lb)`
+    : '';
+  $('#trend-net').innerHTML = rows.length
+    ? rows.map(({ key, bal }) => {
+      const [y, m, d] = key.split('-').map(Number);
+      const day = new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
+      const cls = bal.net > 0 ? 'surplus' : 'deficit';
+      const w = (Math.abs(bal.net) / biggest) * 50;
+      const pos = bal.net > 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`;
+      return `<div class="tn-row" data-day="${key}"><span class="day">${esc(day)}</span>
+        <div class="tn-track"><i class="${cls}" style="${pos}"></i></div>
+        <span class="val ${cls}">${bal.net > 0 ? '+' : '−'}${fmt(Math.abs(bal.net))}</span></div>`;
+    }).join('')
+    : '<div class="empty">Days with both food logged and calories burned show up here.</div>';
+}
+
 /* ---------------- Settings ---------------- */
 function renderSettings() {
   const { goals, settings } = store.getState();
   const gf = $('#goals-form');
   for (const k of ['kcal', 'protein', 'carbs', 'fat']) gf.elements[k].value = goals[k];
+  gf.elements.restingKcal.value = goals.restingKcal || '';
   $('#api-form').elements.usdaApiKey.value = settings.usdaApiKey || '';
   updateGoalCheck();
   renderAccount();
+  renderGarmin();
+}
+
+function renderGarmin() {
+  const form = $('#garmin-form');
+  const has = garmin.hasKey();
+  const signedIn = Boolean(sync.getAccount().user);
+  form.elements.garminKey.placeholder = has ? 'Key saved on this device' : 'Paste key';
+  $('#garmin-pull').disabled = !has || !signedIn || garmin.status.state === 'syncing';
+  $('#garmin-forget').hidden = !has;
+  const st = garmin.status;
+  let msg = '';
+  let kind = '';
+  if (!signedIn) msg = 'Sign in above to use Garmin.';
+  else if (st.state === 'syncing') msg = 'Getting calories from Garmin…';
+  else if (st.state === 'error') [msg, kind] = [st.message, 'error'];
+  else if (has && garmin.lastPulled()) [msg, kind] = [`Last pulled from Garmin ${timeAgo(new Date(garmin.lastPulled()))}.`, 'ok'];
+  else if (has) msg = 'Key saved. Tap "Pull last 14 days" to fetch.';
+  authStatus('#garmin-status', msg, kind);
+}
+
+async function pullGarmin(days = 14) {
+  const end = store.todayKey();
+  try {
+    const r = await garmin.pull(store.shiftDate(end, -(days - 1)), end);
+    toast(r.days ? `Garmin: ${r.days} day${r.days > 1 ? 's' : ''} of calories` : 'Garmin had no calories for those days');
+  } catch (e) {
+    toast(e.message);
+  }
 }
 
 /* ---------------- Account ---------------- */
@@ -692,9 +796,48 @@ function bind() {
   $('#goals-form').onsubmit = (e) => {
     e.preventDefault();
     const f = e.target.elements;
-    store.setGoals({ kcal: +f.kcal.value || 0, protein: +f.protein.value || 0, carbs: +f.carbs.value || 0, fat: +f.fat.value || 0 });
+    store.setGoals({ kcal: +f.kcal.value || 0, protein: +f.protein.value || 0, carbs: +f.carbs.value || 0, fat: +f.fat.value || 0, restingKcal: +f.restingKcal.value || 0 });
     toast('Goals saved');
   };
+  $('#garmin-form').onsubmit = (e) => {
+    e.preventDefault();
+    const input = e.target.elements.garminKey;
+    const key = input.value.trim();
+    if (!key) return toast('Paste your Garmin Personal API key first.');
+    garmin.setKey(key);
+    input.value = '';
+    toast('Garmin key saved on this device');
+    renderGarmin();
+    if (sync.getAccount().user) pullGarmin();
+  };
+  $('#garmin-pull').onclick = () => pullGarmin();
+  $('#garmin-forget').onclick = () => {
+    if (!confirm('Remove the Garmin key from this device? Calories already pulled stay in your log.')) return;
+    garmin.setKey('');
+    renderGarmin();
+  };
+
+  // Calories burned dialog
+  $('#balance-card').addEventListener('click', (e) => {
+    if (e.target.closest('[data-burn-edit]')) openBurn();
+  });
+  $('#burn-close').onclick = () => $('#burn-dialog').close();
+  $('#burn-form').onsubmit = (e) => {
+    e.preventDefault();
+    const f = e.target.elements;
+    store.setBurn(burnDlg.date, { active: f.active.value, resting: f.resting.value, source: 'manual' });
+    $('#burn-dialog').close();
+    toast('Saved');
+  };
+  $('#burn-clear').onclick = () => {
+    store.removeBurn(burnDlg.date);
+    $('#burn-dialog').close();
+    toast(garmin.hasKey() ? 'Cleared. Garmin will fill it in again on its next pull.' : 'Cleared');
+    // Let Garmin re-fill a day the user cleared.
+    garmin.forgetPulled(burnDlg.date);
+    garmin.refreshAround(burnDlg.date);
+  };
+
   $('#api-form').onsubmit = (e) => {
     e.preventDefault();
     store.setSettings({ usdaApiKey: e.target.elements.usdaApiKey.value.trim() });
@@ -722,6 +865,13 @@ function bind() {
   };
 
   // Trends: tap a day to open it
+  $('#trend-net').addEventListener('click', (e) => {
+    const row = e.target.closest('[data-day]');
+    if (row) {
+      setDate(row.dataset.day);
+      showView('today');
+    }
+  });
   $('#trend-chart').addEventListener('click', (e) => {
     const col = e.target.closest('[data-day]');
     if (col) {
@@ -732,6 +882,7 @@ function bind() {
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) stopScanning();
+    else garmin.refreshAround(ui.date);
   });
 }
 
@@ -741,21 +892,51 @@ store.subscribe((_state, source) => {
   if (ui.view === 'add' && source === 'sync' && ui.addTab === 'mine') renderMine();
   // Goals or settings arriving from another device: refresh the form unless
   // the user is typing in it.
-  const typing = document.activeElement?.matches('#goals-form input, #api-form input');
+  const typing = document.activeElement?.matches('#goals-form input, #api-form input, #garmin-form input');
   if (ui.view === 'settings' && source === 'sync' && !typing) renderSettings();
 });
 
+let lastUserId = null;
 sync.onChange((a) => {
   // Opened from a password reset email: take them to the new-password form.
   if (a.recovering && ui.view !== 'settings') showView('settings');
-  if (ui.view === 'settings') renderAccount();
+  if (ui.view === 'settings') {
+    renderAccount();
+    renderGarmin();
+  }
+  if (a.user && a.user.id !== lastUserId) garmin.refreshAround(ui.date);
+  lastUserId = a.user?.id || null;
 });
 
+garmin.onChange(() => {
+  if (ui.view === 'settings') renderGarmin();
+  if (ui.view === 'today') renderBalance();
+});
+
+// Apple Health / Shortcuts: opening
+//   …/calories/?burn=2026-11-09&active=650&resting=1720
+// saves that day's calories burned. See README.md.
+function importBurnFromUrl() {
+  const q = new URLSearchParams(location.search);
+  if (!q.has('burn')) return;
+  const date = q.get('burn') || store.todayKey();
+  const active = parseFloat(q.get('active'));
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(active)) {
+    const resting = parseFloat(q.get('resting'));
+    store.setBurn(date, { active, resting: Number.isFinite(resting) ? resting : null, source: q.get('source') === 'manual' ? 'manual' : 'health' });
+    ui.date = date;
+    setTimeout(() => toast(`Saved ${round(active)} active kcal for ${date === store.todayKey() ? 'today' : date}`), 300);
+  }
+  history.replaceState(null, '', location.pathname + location.hash);
+}
+
+importBurnFromUrl();
 bind();
 bindAccount();
 sync.init();
 renderDate();
 renderToday();
+garmin.refreshAround(ui.date);
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Service worker not registered', e));

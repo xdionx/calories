@@ -198,6 +198,25 @@ async function push() {
   }
 }
 
+/* ---------------- Edge functions ---------------- */
+
+// Calls a Supabase Edge Function as the signed-in user (used by js/garmin.js).
+export async function callFunction(name, body) {
+  if (!client || !account.user) throw new Error('Sign in first (Settings → Account).');
+  const { data, error } = await client.functions.invoke(name, { body });
+  if (error) {
+    // Pull the function's own error message out of the response when there is one.
+    let msg = error.message;
+    try {
+      const j = await error.context?.json?.();
+      if (j?.error) msg = j.error;
+    } catch {}
+    if (/failed to send|fetch/i.test(msg) && navigator.onLine) msg = `The "${name}" function isn't reachable. Is it deployed? (${msg})`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
 /* ---------------- Account actions ---------------- */
 
 function friendly(error) {

@@ -6,6 +6,7 @@ A phone-friendly web app (installable PWA) for tracking calories, macros, vitami
 - **Barcode scanning** with the phone camera. Uses the browser's built-in `BarcodeDetector` when available (Android Chrome) and the bundled ZXing reader everywhere else (iPhone Safari, Firefox). You can also type the barcode number.
 - **Food database search** across USDA FoodData Central (whole foods, best vitamin/mineral data) and Open Food Facts (packaged foods).
 - **Restaurants**: pick a restaurant, then browse or filter its menu. Ships with sample menus for McDonald's, Wendy's, Taco Bell and Chick-fil-A; real data sources plug in through a small provider interface.
+- **Calories burned and daily deficit/surplus**: pulls active and resting calories from Garmin Connect (or takes them from Apple Health via a Shortcut, or typed in) and shows eaten − burned for each day, plus a 7-day deficit/surplus chart on Trends.
 - **Custom foods**, recent foods, 7-day trends, editable goals, and JSON backup/restore.
 - **Accounts and sync** (optional): sign in with email and password and your log, goals, custom foods, recent foods and settings sync across devices. Without an account, data stays in the browser's local storage on the device.
 
@@ -38,6 +39,36 @@ Both values are designed to be public: the database rules only let a signed-in u
 Optional: Supabase's built-in email sender is limited to a few emails an hour. If you expect several people to sign up, add your own SMTP server under **Authentication → Emails**, or turn off **Confirm email** under **Authentication → Sign In / Providers** to skip the confirmation step.
 
 Signing out uploads any remaining changes and then removes the account's data from that device. A backup imported while signed in replaces the account's data too.
+
+## Calories burned (Garmin, Apple Health, manual)
+
+The Today screen shows **eaten − burned = deficit or surplus**, where burned is resting calories (BMR) plus active calories. Days come from one of three places:
+
+### Garmin (Personal API)
+
+Garmin opened a free Personal API in October 2026: any Garmin Connect user can make a key for their own data, with no application. The browser can't call Garmin directly, so the app goes through a small Supabase Edge Function ([`supabase/functions/garmin/index.ts`](supabase/functions/garmin/index.ts)) that swaps the key for a Garmin token and reads Garmin's daily summaries (`/usersummary-service/v2/dailysummaries`). It stores nothing and only answers signed-in users.
+
+One-time setup:
+
+1. **Deploy the function.** Supabase dashboard → **Edge Functions → Deploy a new function → Via editor**. Name it `garmin`, replace the sample code with the contents of `supabase/functions/garmin/index.ts`, and click **Deploy**. The function checks the caller is signed in itself, so the **Verify JWT** setting can be on or off. (Or with the CLI: `supabase functions deploy garmin`.) No secrets to set.
+2. **Make a Garmin key.** On a computer, sign in at [Garmin Connect → Settings → Personal API](https://connect.garmin.com/app/settings/personalApiToken), create a key (choose 1 year), and copy it. Garmin shows it once.
+3. **Paste it in the app**: Settings → Garmin → Save key. The app pulls the last 14 days, then refreshes the week around whatever day you look at (today every 15 minutes at most).
+
+The key is kept in that device's local storage only; it isn't synced to your account. The burned calories it pulls do sync. A day you edit by hand is left alone by Garmin until you clear it. When the key expires, Garmin emails you; make a new one and paste it again.
+
+### Apple Health (iPhone Shortcut)
+
+Garmin Connect can write to Apple Health, and so can an Apple Watch. A Shortcut can send a day's numbers to the app by opening a link:
+
+```
+https://xdionx.github.io/calories/?burn=2026-11-09&active=650&resting=1720
+```
+
+Build it in the Shortcuts app: **Find Health Samples** (Type: Active Energy, Start Date is today) → **Calculate Statistics** (Sum) → repeat for **Resting Energy** → **URL** with the link above, using the date and the two sums → **Open URLs**. Add it as a daily automation if you like. iPhone keeps a home-screen app's storage separate from Safari, so sign in to your account in both and the numbers sync across.
+
+### By hand
+
+Tap **Add burned** / **Edit** on the Today card and type active and resting calories. If you leave resting empty (or a source only reports active), the app uses **Resting burn** from Settings → Daily goals.
 
 ## Data sources
 

@@ -251,3 +251,28 @@ dialog.sheet form { display: flex; flex-direction: column; gap: 12px; padding: 1
 .sync-dot.error { background: var(--over); }
 @keyframes pulse { from { opacity: 1; } to { opacity: .3; } }
 .status.ok { color: var(--accent); }
+
+/* Energy balance (eaten vs burned) */
+.balance .card-head { margin-bottom: 8px; }
+.bal-eq { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: end; gap: 4px; text-align: center; }
+.bal-eq .op { color: var(--muted); font-size: 1.1rem; padding-bottom: 18px; }
+.bal-eq b { display: block; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.bal-eq span { display: block; font-size: 0.75rem; color: var(--muted); }
+.bal-eq .net b { color: var(--accent); }
+.bal-eq .net.surplus b { color: var(--carbs); }
+.bal-split { margin-top: 8px; font-size: 0.8rem; color: var(--muted); text-align: center; }
+.bal-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bal-empty p { margin: 0; }
+.steps { margin: 0; padding-left: 1.2em; }
+.steps li { margin: 2px 0; }
+.trend-net { display: flex; flex-direction: column; }
+.tn-row { display: grid; grid-template-columns: 4.2em 1fr 5.5em; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); cursor: pointer; font-size: 0.9rem; }
+.tn-row:first-child { border-top: 0; }
+.tn-row .day { color: var(--muted); }
+.tn-row .val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.tn-row .val.deficit { color: var(--accent); }
+.tn-row .val.surplus { color: var(--carbs); }
+.tn-track { position: relative; height: 8px; background: var(--line); border-radius: 99px; }
+.tn-track::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--muted); }
+.tn-track i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: var(--accent); }
+.tn-track i.surplus { background: var(--carbs); }
