@@ -10,7 +10,6 @@ import * as sync from './sync.js';
 
 const KEY = 'ct.garmin.v1';
 const FRESH_MS = 15 * 60 * 1000; // re-pull today at most every 15 min
-const PAST_FRESH_MS = 6 * 60 * 60 * 1000; // days before today settle; re-pull rarely
 
 let saved = load();
 const listeners = new Set();
@@ -128,22 +127,24 @@ export async function pull(startDate, endDate) {
   return busy;
 }
 
-// Called when a day is shown: quietly pulls the week ending on that day if
-// it's stale. Does nothing without a key or an account.
-export function refreshAround(date) {
+// Called when the app opens or comes back, and when a day is shown. Quietly
+// pulls the last 3 days (at most every 15 minutes). An older day you open
+// is fetched once if it has no calories yet. "Pull last 14 days" in
+// Settings goes further back. Does nothing without a key or an account.
+export const RECENT_DAYS = 3;
+
+export function refreshAround(date = store.todayKey()) {
   if (!saved.apiKey || !sync.getAccount().user || busy) return;
   const today = store.todayKey();
   if (date > today) return;
-  const start = store.shiftDate(date, -6);
-  const stale = [];
-  for (let k = start; k <= date; k = store.shiftDate(k, 1)) {
-    const age = Date.now() - (saved.pulled[k] || 0);
-    if (age > (k === today ? FRESH_MS : PAST_FRESH_MS)) stale.push(k);
-  }
-  if (!stale.length) return;
-  // A failed pull doesn't retry until the next stale check after FRESH_MS.
+  const recentStart = store.shiftDate(today, -(RECENT_DAYS - 1));
+  let range = null;
+  if (Date.now() - (saved.pulled[today] || 0) > FRESH_MS) range = [recentStart, today];
+  else if (date < recentStart && !saved.pulled[date] && !store.burnFor(date)) range = [date, date];
+  if (!range) return;
+  // After a failed pull, wait FRESH_MS before trying again.
   if (status.state === 'error' && Date.now() - (saved.lastTry || 0) < FRESH_MS) return;
   saved.lastTry = Date.now();
   persist();
-  pull(stale[0], stale[stale.length - 1]).catch((e) => console.warn('Garmin pull failed', e));
+  pull(range[0], range[1]).catch((e) => console.warn('Garmin pull failed', e));
 }
