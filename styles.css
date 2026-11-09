@@ -34,6 +34,8 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
+/* No pinch or double-tap zoom: it fights with scrolling on phones. */
+html { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   font: 16px/1.45 var(--font);
   background: var(--bg);
@@ -123,8 +125,12 @@ main { max-width: 640px; margin: 0 auto; padding: 0 16px; }
 input, select {
   font: inherit; color: var(--text); background: var(--card);
   border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%;
-  min-height: 44px;
+  min-height: 44px; min-width: 0;
+  font-size: 16px; /* under 16px, iPhone zooms in when a field is tapped */
 }
+/* iPhone date fields have a wide built-in minimum; let them fit the column. */
+input[type="date"] { -webkit-appearance: none; appearance: none; display: block; text-align: left; }
+input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .btn {
   font: 600 0.92rem/1 var(--font); border: 1px solid var(--line); background: var(--card); color: var(--text);
@@ -189,6 +195,9 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
 .form p { margin: 0; }
 label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--muted); }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.grid2 > * { min-width: 0; }
+/* Narrow phones: one field per row in the profile. */
+@media (max-width: 420px) { #profile-form .grid2 { grid-template-columns: 1fr; } }
 
 /* Tab bar */
 .tabbar {
