@@ -241,3 +241,13 @@ dialog.sheet form { display: flex; flex-direction: column; gap: 12px; padding: 1
   .ring-num { font-size: 1.4rem; }
   .seg button { font-size: 0.8rem; }
 }
+
+/* Account */
+.link-btn { align-self: flex-start; background: none; border: 0; padding: 2px 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
+.sync-line { display: flex; align-items: center; gap: 8px; }
+.sync-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.sync-dot.synced { background: var(--accent); }
+.sync-dot.syncing { background: var(--accent); animation: pulse 1s ease-in-out infinite alternate; }
+.sync-dot.error { background: var(--over); }
+@keyframes pulse { from { opacity: 1; } to { opacity: .3; } }
+.status.ok { color: var(--accent); }

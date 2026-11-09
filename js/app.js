@@ -4,6 +4,7 @@ import { MEALS } from './store.js';
 import { searchFoods, lookupBarcode } from './providers/index.js';
 import { RESTAURANTS, getRestaurant } from './providers/restaurants/index.js';
 import { startScanner } from './scanner.js';
+import * as sync from './sync.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -465,6 +466,112 @@ function renderSettings() {
   for (const k of ['kcal', 'protein', 'carbs', 'fat']) gf.elements[k].value = goals[k];
   $('#api-form').elements.usdaApiKey.value = settings.usdaApiKey || '';
   updateGoalCheck();
+  renderAccount();
+}
+
+/* ---------------- Account ---------------- */
+function timeAgo(d) {
+  const s = Math.round((Date.now() - d) / 1000);
+  if (s < 45) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function renderAccount() {
+  const a = sync.getAccount();
+  const signedIn = Boolean(a.user);
+  $('#account-off').hidden = a.configured;
+  $('#auth-form').hidden = !a.configured || !a.ready || signedIn;
+  $('#account-info').hidden = !signedIn || a.recovering;
+  $('#newpass-form').hidden = !signedIn || !a.recovering;
+  $('#data-note').textContent = signedIn
+    ? 'Your data is saved on this device and in your account. You can also export a backup file.'
+    : 'Everything is stored on this device. Export a backup to keep a copy or move it to another browser.';
+  if (!signedIn) return;
+  $('#account-email').textContent = a.user.email || '';
+  const text = {
+    idle: 'Not synced yet',
+    syncing: 'Syncing…',
+    synced: a.lastSynced ? `Synced ${timeAgo(a.lastSynced)}` : 'Synced',
+    offline: "Offline. Changes are saved here and will sync when you're back online.",
+    error: `Sync problem: ${a.error}`,
+  }[a.status];
+  $('#sync-text').textContent = text;
+  $('#sync-dot').className = `sync-dot ${a.status}`;
+  $('#sync-btn').disabled = a.status === 'syncing';
+}
+
+function authStatus(sel, msg, kind = '') {
+  const el = $(sel);
+  el.textContent = msg;
+  el.className = `status ${kind}`;
+}
+
+function bindAccount() {
+  const form = $('#auth-form');
+  let busy = false;
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    const mode = e.submitter?.dataset.auth || 'signin';
+    const email = form.elements.email.value.trim();
+    const password = form.elements.password.value;
+    busy = true;
+    authStatus('#auth-status', mode === 'signup' ? 'Creating account…' : 'Signing in…');
+    try {
+      if (mode === 'signup') {
+        const needsConfirm = await sync.signUp(email, password);
+        if (needsConfirm) authStatus('#auth-status', `Check ${email} for a confirmation link, then come back and sign in.`, 'ok');
+        else authStatus('#auth-status', '');
+      } else {
+        await sync.signIn(email, password);
+        authStatus('#auth-status', '');
+      }
+      if (sync.getAccount().user) {
+        form.reset();
+        toast('Signed in. Syncing your data.');
+      }
+    } catch (err) {
+      authStatus('#auth-status', err.message, 'error');
+    } finally {
+      busy = false;
+    }
+  };
+  $('#forgot-btn').onclick = async () => {
+    const email = form.elements.email.value.trim();
+    if (!email) {
+      authStatus('#auth-status', 'Type your email above, then tap "Forgot password?" again.', 'error');
+      form.elements.email.focus();
+      return;
+    }
+    try {
+      await sync.sendPasswordReset(email);
+      authStatus('#auth-status', `If ${email} has an account, a reset link is on its way.`, 'ok');
+    } catch (err) {
+      authStatus('#auth-status', err.message, 'error');
+    }
+  };
+  $('#newpass-form').onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await sync.updatePassword(e.target.elements.password.value);
+      e.target.reset();
+      toast('Password updated');
+    } catch (err) {
+      authStatus('#newpass-status', err.message, 'error');
+    }
+  };
+  $('#sync-btn').onclick = () => sync.syncNow();
+  $('#signout-btn').onclick = async () => {
+    if (!confirm('Sign out? Your data stays in your account and is removed from this device.')) return;
+    let result = await sync.signOut();
+    if (result?.unsynced) {
+      if (!confirm("Some recent changes haven't synced yet (you may be offline). Sign out anyway and lose them?")) return;
+      result = await sync.signOut({ force: true });
+    }
+    toast('Signed out');
+    renderSettings();
+  };
 }
 
 function updateGoalCheck() {
@@ -626,12 +733,25 @@ function bind() {
   });
 }
 
-store.subscribe(() => {
+store.subscribe((_state, source) => {
   renderToday();
   if (ui.view === 'trends') renderTrends();
+  if (ui.view === 'add' && source === 'sync' && ui.addTab === 'mine') renderMine();
+  // Goals or settings arriving from another device: refresh the form unless
+  // the user is typing in it.
+  const typing = document.activeElement?.matches('#goals-form input, #api-form input');
+  if (ui.view === 'settings' && source === 'sync' && !typing) renderSettings();
+});
+
+sync.onChange((a) => {
+  // Opened from a password reset email: take them to the new-password form.
+  if (a.recovering && ui.view !== 'settings') showView('settings');
+  if (ui.view === 'settings') renderAccount();
 });
 
 bind();
+bindAccount();
+sync.init();
 renderDate();
 renderToday();
 

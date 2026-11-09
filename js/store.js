@@ -1,6 +1,7 @@
 // Local persistence. Everything lives in the browser's localStorage, so the app
-// works offline and needs no account. Export/import in Settings moves data
-// between devices.
+// works offline. When the user signs in, js/sync.js copies changes to and from
+// their account; this module tracks which pieces changed so sync can send just
+// those.
 //
 // Food shape used across the app:
 // {
@@ -11,12 +12,19 @@
 //   units: [{ label: '100 g', factor: 1 }, { label: 'g', factor: 0.01 }, ...],
 //   defaultUnit: 0,
 // }
-// A log entry is { id, date, meal, food, unitIndex, qty, nutrients } where
-// `nutrients` is the already-scaled total for that entry.
+// A log entry is { id, date, meal, food, unitIndex, qty, nutrients, createdAt,
+// updatedAt } where `nutrients` is the already-scaled total for that entry.
+//
+// Sync model: the state is split into "items", each with a last-changed time:
+//   entry:<id>  one log entry          food:<id>  one custom food
+//   goals, settings, recent            whole objects
+// Changing something stamps it and marks its item pending. Sync pushes pending
+// items and applies newer remote ones (last write wins per item).
 
 import { scaleNutrients, sumNutrients } from './nutrients.js';
 
 const KEY = 'ct.v1';
+const SYNC_KEY = 'ct.sync.v1';
 export const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
 
 const DEFAULT_STATE = {
@@ -25,36 +33,59 @@ const DEFAULT_STATE = {
   log: {}, // { 'YYYY-MM-DD': [entry, ...] }
   recent: [], // recently used foods (most recent first)
   myFoods: [], // custom foods the user created
+  stamps: { goals: 0, settings: 0, recent: 0 }, // last-changed times of whole-object items
 };
 
+// owner: account id the local data belongs to (null = not signed in yet)
+// cursor: server time of the newest change already pulled
+// pending: item ids changed here and not yet uploaded
+// deleted: item id → time it was deleted here (until uploaded)
+const DEFAULT_SYNC = { owner: null, cursor: null, pending: {}, deleted: {} };
+
 let state = load();
+let sync = loadSync();
 const listeners = new Set();
+
+function normalize(parsed) {
+  return {
+    ...structuredClone(DEFAULT_STATE),
+    ...parsed,
+    goals: { ...DEFAULT_STATE.goals, ...(parsed.goals || {}) },
+    settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) },
+    stamps: { ...DEFAULT_STATE.stamps, ...(parsed.stamps || {}) },
+  };
+}
 
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        ...structuredClone(DEFAULT_STATE),
-        ...parsed,
-        goals: { ...DEFAULT_STATE.goals, ...(parsed.goals || {}) },
-        settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) },
-      };
-    }
+    if (raw) return normalize(JSON.parse(raw));
   } catch (e) {
     console.warn('Could not read saved data', e);
   }
   return structuredClone(DEFAULT_STATE);
 }
 
-function save() {
+function loadSync() {
+  try {
+    const raw = localStorage.getItem(SYNC_KEY);
+    if (raw) return { ...structuredClone(DEFAULT_SYNC), ...JSON.parse(raw) };
+  } catch (e) {
+    console.warn('Could not read sync data', e);
+  }
+  return structuredClone(DEFAULT_SYNC);
+}
+
+// `source` tells listeners why the state changed: 'local' for the user's own
+// edits (sync uploads these), 'sync' for changes that came from the account.
+function save(source = 'local') {
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
+    localStorage.setItem(SYNC_KEY, JSON.stringify(sync));
   } catch (e) {
     console.warn('Could not save data', e);
   }
-  listeners.forEach((fn) => fn(state));
+  listeners.forEach((fn) => fn(state, source));
 }
 
 export function subscribe(fn) {
@@ -63,6 +94,26 @@ export function subscribe(fn) {
 }
 
 export const getState = () => state;
+
+/* ---------------- Change tracking ---------------- */
+
+// Strictly increasing so two changes in the same millisecond still order.
+let lastStamp = 0;
+function stamp() {
+  lastStamp = Math.max(Date.now(), lastStamp + 1);
+  return lastStamp;
+}
+
+function touch(itemId) {
+  sync.pending[itemId] = true;
+}
+
+function touchDeleted(itemId) {
+  sync.pending[itemId] = true;
+  sync.deleted[itemId] = stamp();
+}
+
+/* ---------------- Dates ---------------- */
 
 export function todayKey(d = new Date()) {
   const y = d.getFullYear();
@@ -75,6 +126,8 @@ export function shiftDate(key, days) {
   const [y, m, d] = key.split('-').map(Number);
   return todayKey(new Date(y, m - 1, d + days));
 }
+
+/* ---------------- Log ---------------- */
 
 export function entriesFor(date) {
   return state.log[date] || [];
@@ -90,6 +143,7 @@ export function entryNutrients(food, unitIndex, qty) {
 }
 
 export function addEntry({ date, meal, food, unitIndex, qty }) {
+  const now = stamp();
   const entry = {
     id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
     date,
@@ -98,8 +152,11 @@ export function addEntry({ date, meal, food, unitIndex, qty }) {
     unitIndex,
     qty,
     nutrients: entryNutrients(food, unitIndex, qty),
+    createdAt: now,
+    updatedAt: now,
   };
   state.log[date] = [...entriesFor(date), entry];
+  touch(`entry:${entry.id}`);
   rememberRecent(food);
   save();
   return entry;
@@ -108,51 +165,222 @@ export function addEntry({ date, meal, food, unitIndex, qty }) {
 export function updateEntry(date, id, changes) {
   state.log[date] = entriesFor(date).map((e) => {
     if (e.id !== id) return e;
-    const next = { ...e, ...changes };
+    const next = { ...e, ...changes, updatedAt: stamp() };
     next.nutrients = entryNutrients(next.food, next.unitIndex, next.qty);
     return next;
   });
+  touch(`entry:${id}`);
   save();
 }
 
 export function removeEntry(date, id) {
   state.log[date] = entriesFor(date).filter((e) => e.id !== id);
   if (!state.log[date].length) delete state.log[date];
+  touchDeleted(`entry:${id}`);
   save();
 }
 
 function rememberRecent(food) {
   state.recent = [food, ...state.recent.filter((f) => f.id !== food.id)].slice(0, 30);
+  state.stamps.recent = stamp();
+  touch('recent');
 }
 
+/* ---------------- Custom foods, goals, settings ---------------- */
+
 export function saveMyFood(food) {
-  state.myFoods = [food, ...state.myFoods.filter((f) => f.id !== food.id)];
+  const saved = { ...food, updatedAt: stamp() };
+  state.myFoods = [saved, ...state.myFoods.filter((f) => f.id !== food.id)];
+  touch(`food:${food.id}`);
   save();
 }
 
 export function deleteMyFood(id) {
   state.myFoods = state.myFoods.filter((f) => f.id !== id);
+  touchDeleted(`food:${id}`);
   save();
 }
 
 export function setGoals(goals) {
   state.goals = { ...state.goals, ...goals };
+  state.stamps.goals = stamp();
+  touch('goals');
   save();
 }
 
 export function setSettings(settings) {
   state.settings = { ...state.settings, ...settings };
+  state.stamps.settings = stamp();
+  touch('settings');
   save();
 }
+
+/* ---------------- Backup ---------------- */
 
 export function exportData() {
   return JSON.stringify(state, null, 2);
 }
 
+// Replaces this device's data with the backup. When signed in, the backup
+// also replaces the account's data: everything is re-stamped as a new change,
+// and anything not in the backup is deleted.
 export function importData(json) {
   const parsed = JSON.parse(json);
   if (!parsed || typeof parsed !== 'object' || !parsed.log) throw new Error('That file is not a Calorie Tracker export.');
-  localStorage.setItem(KEY, JSON.stringify(parsed));
-  state = load();
+  const before = new Set(allItems(state).keys());
+  state = normalize(parsed);
+  const now = stamp();
+  for (const day of Object.values(state.log)) {
+    for (const e of day) {
+      e.createdAt = e.createdAt || now;
+      e.updatedAt = now;
+    }
+  }
+  state.myFoods = state.myFoods.map((f) => ({ ...f, updatedAt: now }));
+  state.stamps = { goals: now, settings: now, recent: now };
+  const after = allItems(state);
+  for (const id of before) if (!after.has(id)) touchDeleted(id);
+  for (const id of after.keys()) touch(id);
   save();
+}
+
+/* ---------------- Sync support (used by js/sync.js) ---------------- */
+
+// Every syncable item in a state: id → { kind, data, updatedAt }
+function allItems(s) {
+  const items = new Map();
+  for (const day of Object.values(s.log)) {
+    for (const e of day) items.set(`entry:${e.id}`, { kind: 'entry', data: e, updatedAt: e.updatedAt || 0 });
+  }
+  for (const f of s.myFoods) items.set(`food:${f.id}`, { kind: 'food', data: f, updatedAt: f.updatedAt || 0 });
+  items.set('goals', { kind: 'goals', data: s.goals, updatedAt: s.stamps.goals || 0 });
+  items.set('settings', { kind: 'settings', data: s.settings, updatedAt: s.stamps.settings || 0 });
+  items.set('recent', { kind: 'recent', data: s.recent, updatedAt: s.stamps.recent || 0 });
+  return items;
+}
+
+function findItem(itemId) {
+  if (itemId.startsWith('entry:')) {
+    const id = itemId.slice(6);
+    for (const day of Object.values(state.log)) {
+      const e = day.find((x) => x.id === id);
+      if (e) return { kind: 'entry', data: e, updatedAt: e.updatedAt || 0 };
+    }
+    return null;
+  }
+  if (itemId.startsWith('food:')) {
+    const f = state.myFoods.find((x) => x.id === itemId.slice(5));
+    return f ? { kind: 'food', data: f, updatedAt: f.updatedAt || 0 } : null;
+  }
+  return allItems({ ...state, log: {}, myFoods: [] }).get(itemId) || null;
+}
+
+const kindOf = (itemId) => (itemId.startsWith('entry:') ? 'entry' : itemId.startsWith('food:') ? 'food' : itemId);
+
+export const getSyncMeta = () => ({ owner: sync.owner, cursor: sync.cursor });
+
+export function setSyncMeta(changes) {
+  Object.assign(sync, changes);
+  save('sync');
+}
+
+export const hasPending = () => Object.keys(sync.pending).length > 0;
+
+// Pending changes as rows to upload.
+export function pendingItems() {
+  const rows = [];
+  for (const id of Object.keys(sync.pending)) {
+    const item = findItem(id);
+    if (item) rows.push({ id, kind: item.kind, data: item.data, updated_at: item.updatedAt, deleted: false });
+    else rows.push({ id, kind: kindOf(id), data: null, updated_at: sync.deleted[id] || stamp(), deleted: true });
+  }
+  return rows;
+}
+
+// Clears pending marks for uploaded rows, unless they changed again meanwhile.
+export function markPushed(rows) {
+  for (const row of rows) {
+    const item = findItem(row.id);
+    const current = item ? item.updatedAt : sync.deleted[row.id];
+    const sameState = item ? !row.deleted : row.deleted;
+    if (current === row.updated_at && sameState) {
+      delete sync.pending[row.id];
+      delete sync.deleted[row.id];
+    }
+  }
+  save('sync');
+}
+
+// Applies rows from the account. A local change that is newer wins.
+export function applyRemote(rows) {
+  let changed = false;
+  for (const row of rows) {
+    const item = findItem(row.id);
+    const localTs = item ? item.updatedAt : sync.deleted[row.id] || 0;
+    if (sync.pending[row.id]) {
+      if (localTs > row.updated_at) continue; // ours is newer; it will be uploaded
+      delete sync.pending[row.id];
+      delete sync.deleted[row.id];
+    }
+    if (item && localTs === row.updated_at && !row.deleted) continue; // already have it
+    if (!item && row.deleted) continue; // already gone
+    putItem(row);
+    changed = true;
+  }
+  save('sync');
+  return changed;
+}
+
+function putItem(row) {
+  const { id, kind, data, deleted } = row;
+  if (kind === 'entry') {
+    const entryId = id.slice(6);
+    for (const [date, day] of Object.entries(state.log)) {
+      if (day.some((e) => e.id === entryId)) {
+        state.log[date] = day.filter((e) => e.id !== entryId);
+        if (!state.log[date].length) delete state.log[date];
+      }
+    }
+    if (!deleted) {
+      const day = [...entriesFor(data.date), { ...data, updatedAt: row.updated_at }];
+      day.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      state.log[data.date] = day;
+    }
+  } else if (kind === 'food') {
+    const foodId = id.slice(5);
+    state.myFoods = state.myFoods.filter((f) => f.id !== foodId);
+    if (!deleted) {
+      state.myFoods = [...state.myFoods, { ...data, updatedAt: row.updated_at }].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    }
+  } else if (kind === 'goals' || kind === 'settings' || kind === 'recent') {
+    if (deleted) return;
+    if (kind === 'goals') state.goals = { ...DEFAULT_STATE.goals, ...data };
+    if (kind === 'settings') state.settings = { ...DEFAULT_STATE.settings, ...data };
+    if (kind === 'recent') state.recent = Array.isArray(data) ? data : [];
+    state.stamps[kind] = row.updated_at;
+  }
+}
+
+// Called on first sign-in on a device: everything already here gets uploaded
+// to the account (merged with what is already there).
+export function markAllPending() {
+  // Goals, settings and recent foods saved before sync existed have no
+  // timestamp. Give them the oldest possible one so they upload, but any
+  // change made on another device since wins. Untouched defaults stay out.
+  const isDefault = (k) => JSON.stringify(state[k]) === JSON.stringify(DEFAULT_STATE[k]);
+  for (const k of ['goals', 'settings', 'recent']) {
+    if (!state.stamps[k] && !isDefault(k)) state.stamps[k] = 1;
+  }
+  for (const [id, item] of allItems(state)) {
+    if (item.updatedAt || item.kind === 'entry' || item.kind === 'food') touch(id);
+  }
+  save('sync');
+}
+
+// Wipes this device's data (used on sign-out and when a different account
+// signs in).
+export function resetLocal() {
+  state = structuredClone(DEFAULT_STATE);
+  sync = structuredClone(DEFAULT_SYNC);
+  save('sync');
 }
