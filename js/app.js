@@ -420,7 +420,7 @@ async function startScanning() {
   $('#scan-idle').hidden = true;
   try {
     ui.stopScan = await startScanner($('#scan-video'), handleBarcode);
-    status.textContent = 'Scanning… hold the barcode inside the box.';
+    status.textContent = 'Scanning… fit the barcode in the box, any direction.';
   } catch (e) {
     $('#scan-idle').hidden = false;
     status.className = 'status error';

@@ -93,25 +93,52 @@ export async function startScanner(video, onDetect) {
     reader.setHints(hints);
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    // ZXing reads barcodes as horizontal stripes, so a can held upright (bars
+    // running sideways) or at a slant needs the picture turned first. Each
+    // frame tries the next view: level, upright, and both diagonals.
+    const VIEWS = [
+      { w: 0.95, h: 0.55, angle: 0 },
+      { w: 0.55, h: 0.95, angle: 90 },
+      { w: 0.8, h: 0.8, angle: 45 },
+      { w: 0.8, h: 0.8, angle: -45 },
+    ];
+    let view = 0;
+    const tryView = (v, w, h) => {
+      const sw = Math.round(w * v.w);
+      const sh = Math.round(h * v.h);
+      const rad = (v.angle * Math.PI) / 180;
+      const cos = Math.abs(Math.cos(rad));
+      const sin = Math.abs(Math.sin(rad));
+      // Keep the work small: the longest side of the turned picture ≤ 1100 px.
+      const scale = Math.min(1, 1100 / Math.max(sw * cos + sh * sin, sw * sin + sh * cos));
+      canvas.width = Math.round((sw * cos + sh * sin) * scale);
+      canvas.height = Math.round((sw * sin + sh * cos) * scale);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#808080';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(rad);
+      ctx.scale(scale, scale);
+      ctx.drawImage(video, Math.round((w - sw) / 2), Math.round((h - sh) / 2), sw, sh, -sw / 2, -sh / 2, sw, sh);
+      try {
+        const source = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+        const bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(source));
+        return reader.decode(bitmap)?.getText() || null;
+      } catch {
+        return null; // no barcode in this view
+      }
+    };
     const tick = () => {
       if (stopped) return;
       const w = video.videoWidth;
       const h = video.videoHeight;
       if (w && h) {
-        // Decode the middle band of the frame (where the on-screen box is):
-        // faster and more reliable than scanning the whole picture.
-        const cropH = Math.round(h * 0.5);
-        canvas.width = w;
-        canvas.height = cropH;
-        ctx.drawImage(video, 0, Math.round((h - cropH) / 2), w, cropH, 0, 0, w, cropH);
-        try {
-          const source = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
-          const bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(source));
-          const result = reader.decode(bitmap);
-          if (result) return found(result.getText());
-        } catch { /* no barcode in this frame */ }
+        // Two views per frame: the level one every time (most common), plus
+        // the next of the turned ones.
+        const code = tryView(VIEWS[0], w, h) || tryView(VIEWS[1 + (view++ % 3)], w, h);
+        if (code) return found(code);
       }
-      setTimeout(tick, 120);
+      setTimeout(tick, 80);
     };
     tick();
   }
