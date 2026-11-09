@@ -710,7 +710,7 @@ function renderGarmin() {
   const form = $('#garmin-form');
   const has = garmin.hasKey();
   const signedIn = Boolean(sync.getAccount().user);
-  form.elements.garminKey.placeholder = has ? 'Key saved on this device' : 'Paste key';
+  form.elements.garminKey.placeholder = has ? 'Key saved to your account' : 'Paste key';
   $('#garmin-pull').disabled = !has || !signedIn || garmin.status.state === 'syncing';
   $('#garmin-forget').hidden = !has;
   const st = garmin.status;
@@ -1011,21 +1011,32 @@ function bind() {
     toast('Cleared');
   };
 
-  $('#garmin-form').onsubmit = (e) => {
+  $('#garmin-form').onsubmit = async (e) => {
     e.preventDefault();
     const input = e.target.elements.garminKey;
     const key = input.value.trim();
     if (!key) return toast('Paste your Garmin Personal API key first.');
-    garmin.setKey(key);
-    input.value = '';
-    toast('Garmin key saved on this device');
-    renderGarmin();
-    if (sync.getAccount().user) pullGarmin();
+    if (!sync.getAccount().user) return toast('Sign in first (Settings → Account).');
+    authStatus('#garmin-status', 'Checking the key with Garmin…');
+    try {
+      await garmin.saveKey(key);
+      input.value = '';
+      toast('Garmin key saved to your account');
+      renderGarmin();
+      pullGarmin();
+    } catch (err) {
+      authStatus('#garmin-status', err.message, 'error');
+    }
   };
   $('#garmin-pull').onclick = () => pullGarmin();
-  $('#garmin-forget').onclick = () => {
-    if (!confirm('Remove the Garmin key from this device? Calories already pulled stay in your log.')) return;
-    garmin.setKey('');
+  $('#garmin-forget').onclick = async () => {
+    if (!confirm('Remove the Garmin key from your account? Every device stops pulling from Garmin. Calories already pulled stay in your log.')) return;
+    try {
+      await garmin.removeKey();
+      toast('Garmin key removed');
+    } catch (err) {
+      toast(err.message);
+    }
     renderGarmin();
   };
 
@@ -1106,6 +1117,8 @@ store.subscribe((_state, source) => {
   // the user is typing in it.
   const typing = document.activeElement?.matches('#goals-form input, #api-form input, #garmin-form input, #profile-form input, #profile-form select');
   if (ui.view === 'settings' && source === 'sync' && !typing) renderSettings();
+  // Another device linked Garmin: start pulling here too.
+  if (source === 'sync') garmin.refreshAround(ui.date);
 });
 
 let lastUserId = null;
