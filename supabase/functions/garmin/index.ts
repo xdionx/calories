@@ -8,6 +8,11 @@
 // Nothing is stored. It only answers signed-in Fuel Log users (checked below
 // with Supabase Auth), so it isn't an open proxy.
 //
+// Turn OFF "Verify JWT with legacy secret" for this function (dashboard →
+// Edge Functions → garmin → Details). With it on, Supabase's gateway can turn
+// requests away before this code runs, without the CORS headers the browser
+// needs, and the app only sees "Failed to send a request".
+//
 // Deploy: Supabase dashboard → Edge Functions → Deploy a new function → Via
 // editor, name it "garmin", paste this file, Deploy. See README.md.
 
@@ -98,7 +103,11 @@ async function signedIn(req: Request) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  // Browser preflight: allow whatever headers the app's Supabase client sends.
+  if (req.method === 'OPTIONS') {
+    const asked = req.headers.get('Access-Control-Request-Headers');
+    return new Response('ok', { headers: { ...cors, ...(asked ? { 'Access-Control-Allow-Headers': asked } : {}), 'Access-Control-Max-Age': '86400' } });
+  }
   if (req.method !== 'POST') return reply(405, { error: 'Use POST.' });
   if (!(await signedIn(req))) return reply(401, { error: 'Sign in to Fuel Log first.' });
   let body: { apiKey?: string; startDate?: string; endDate?: string };
