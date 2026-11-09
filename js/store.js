@@ -22,6 +22,7 @@
 // Sync model: the state is split into "items", each with a last-changed time:
 //   entry:<id>  one log entry          food:<id>  one custom food
 //   burn:<date> calories burned that day
+//   recipe:<id> one saved recipe (see js/recipes.js for its shape)
 //   goals, settings, recent            whole objects
 // Changing something stamps it and marks its item pending. Sync pushes pending
 // items and applies newer remote ones (last write wins per item).
@@ -41,6 +42,7 @@ const DEFAULT_STATE = {
   recent: [], // recently used foods (most recent first)
   myFoods: [], // custom foods the user created
   burn: {}, // { 'YYYY-MM-DD': { date, active, resting, source, updatedAt } }
+  recipes: [], // saved recipes, most recently changed first
   stamps: { goals: 0, settings: 0, recent: 0 }, // last-changed times of whole-object items
 };
 
@@ -61,6 +63,7 @@ function normalize(parsed) {
     goals: { ...DEFAULT_STATE.goals, ...(parsed.goals || {}) },
     settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) },
     burn: parsed.burn && typeof parsed.burn === 'object' ? parsed.burn : {},
+    recipes: Array.isArray(parsed.recipes) ? parsed.recipes : [],
     stamps: { ...DEFAULT_STATE.stamps, ...(parsed.stamps || {}) },
   };
 }
@@ -232,6 +235,23 @@ export function balanceFor(date) {
   return { eaten, active: b.active || 0, resting, restingFromGoal, burned, net: eaten - burned, source: b.source };
 }
 
+/* ---------------- Recipes ---------------- */
+
+export function saveRecipe(recipe) {
+  const now = stamp();
+  const saved = { ...recipe, createdAt: recipe.createdAt || now, updatedAt: now };
+  state.recipes = [saved, ...state.recipes.filter((r) => r.id !== recipe.id)];
+  touch(`recipe:${recipe.id}`);
+  save();
+  return saved;
+}
+
+export function deleteRecipe(id) {
+  state.recipes = state.recipes.filter((r) => r.id !== id);
+  touchDeleted(`recipe:${id}`);
+  save();
+}
+
 /* ---------------- Custom foods, goals, settings ---------------- */
 
 export function saveMyFood(food) {
@@ -284,6 +304,7 @@ export function importData(json) {
   }
   state.myFoods = state.myFoods.map((f) => ({ ...f, updatedAt: now }));
   for (const b of Object.values(state.burn)) b.updatedAt = now;
+  state.recipes = state.recipes.map((r) => ({ ...r, updatedAt: now }));
   state.stamps = { goals: now, settings: now, recent: now };
   const after = allItems(state);
   for (const id of before) if (!after.has(id)) touchDeleted(id);
@@ -301,6 +322,7 @@ function allItems(s) {
   }
   for (const f of s.myFoods) items.set(`food:${f.id}`, { kind: 'food', data: f, updatedAt: f.updatedAt || 0 });
   for (const b of Object.values(s.burn || {})) items.set(`burn:${b.date}`, { kind: 'burn', data: b, updatedAt: b.updatedAt || 0 });
+  for (const r of s.recipes || []) items.set(`recipe:${r.id}`, { kind: 'recipe', data: r, updatedAt: r.updatedAt || 0 });
   items.set('goals', { kind: 'goals', data: s.goals, updatedAt: s.stamps.goals || 0 });
   items.set('settings', { kind: 'settings', data: s.settings, updatedAt: s.stamps.settings || 0 });
   items.set('recent', { kind: 'recent', data: s.recent, updatedAt: s.stamps.recent || 0 });
@@ -324,11 +346,15 @@ function findItem(itemId) {
     const b = state.burn[itemId.slice(5)];
     return b ? { kind: 'burn', data: b, updatedAt: b.updatedAt || 0 } : null;
   }
-  return allItems({ ...state, log: {}, myFoods: [], burn: {} }).get(itemId) || null;
+  if (itemId.startsWith('recipe:')) {
+    const r = state.recipes.find((x) => x.id === itemId.slice(7));
+    return r ? { kind: 'recipe', data: r, updatedAt: r.updatedAt || 0 } : null;
+  }
+  return allItems({ ...state, log: {}, myFoods: [], burn: {}, recipes: [] }).get(itemId) || null;
 }
 
 const kindOf = (itemId) => {
-  for (const k of ['entry', 'food', 'burn']) if (itemId.startsWith(`${k}:`)) return k;
+  for (const k of ['entry', 'food', 'burn', 'recipe']) if (itemId.startsWith(`${k}:`)) return k;
   return itemId;
 };
 
@@ -411,6 +437,12 @@ function putItem(row) {
     const date = id.slice(5);
     if (deleted) delete state.burn[date];
     else state.burn[date] = { ...data, date, updatedAt: row.updated_at };
+  } else if (kind === 'recipe') {
+    const recipeId = id.slice(7);
+    state.recipes = state.recipes.filter((r) => r.id !== recipeId);
+    if (!deleted) {
+      state.recipes = [...state.recipes, { ...data, id: recipeId, updatedAt: row.updated_at }].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    }
   } else if (kind === 'goals' || kind === 'settings' || kind === 'recent') {
     if (deleted) return;
     if (kind === 'goals') state.goals = { ...DEFAULT_STATE.goals, ...data };
@@ -431,7 +463,7 @@ export function markAllPending() {
     if (!state.stamps[k] && !isDefault(k)) state.stamps[k] = 1;
   }
   for (const [id, item] of allItems(state)) {
-    if (item.updatedAt || item.kind === 'entry' || item.kind === 'food' || item.kind === 'burn') touch(id);
+    if (item.updatedAt || item.kind === 'entry' || item.kind === 'food' || item.kind === 'burn' || item.kind === 'recipe') touch(id);
   }
   save('sync');
 }

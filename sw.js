@@ -1,9 +1,10 @@
 // Offline support: the app shell is cached; food database calls always go to
 // the network (and fail gracefully when offline).
-const CACHE = 'fuel-log-v6';
+const CACHE = 'fuel-log-v8';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
   'js/app.js', 'js/store.js', 'js/sync.js', 'js/garmin.js', 'js/config.js', 'js/nutrients.js', 'js/scanner.js',
+  'js/recipes.js', 'js/recipe-ui.js',
   'js/providers/index.js', 'js/providers/openfoodfacts.js', 'js/providers/usda.js',
   'js/providers/restaurants/index.js', 'js/providers/restaurants/provider.js', 'js/providers/restaurants/sample-menus.js',
   'vendor/zxing.min.js', 'vendor/supabase.js',

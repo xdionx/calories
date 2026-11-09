@@ -276,3 +276,33 @@ dialog.sheet form { display: flex; flex-direction: column; gap: 12px; padding: 1
 .tn-track::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--muted); }
 .tn-track i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: var(--accent); }
 .tn-track i.surplus { background: var(--carbs); }
+
+/* Recipes */
+textarea {
+  font: inherit; color: var(--text); background: var(--card);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%; resize: vertical;
+}
+textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.rx-list { display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.rx-list:empty { display: none; }
+.rx-ing { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.rx-ing:first-child { border-top: 0; }
+.rx-ing.unmatched { background: color-mix(in srgb, var(--over) 6%, transparent); }
+.rx-top { display: flex; align-items: flex-start; gap: 8px; }
+.rx-line { flex: 1; min-width: 0; font-weight: 500; }
+.rx-remove { width: 32px; height: 32px; font-size: 0.95rem; flex: none; color: var(--muted); margin: -6px -6px 0 0; }
+.rx-food { text-align: left; background: none; border: 0; padding: 0; font: inherit; font-size: 0.85rem; color: var(--muted); cursor: pointer; }
+.rx-food:disabled { cursor: default; }
+.rx-ing.unmatched .rx-food { color: var(--over); }
+.rx-food .chev { color: var(--accent); }
+.rx-amt { display: grid; grid-template-columns: 90px 1fr auto; gap: 8px; align-items: center; }
+.rx-amt select { min-width: 0; }
+.rx-kcal { font-weight: 600; font-variant-numeric: tabular-nums; font-size: 0.9rem; min-width: 4.5em; text-align: right; }
+.rx-note { font-size: 0.78rem; color: var(--carbs); }
+.rx-picker { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.rx-cands { max-height: 300px; overflow-y: auto; }
+.rx-cands li { padding: 10px 12px; }
+.rx-cands li.chosen { background: var(--accent-soft); }
+.rx-static li { cursor: default; }
+.rx-static li:hover { background: none; }
+.rx-directions { white-space: pre-wrap; font-size: 0.95rem; }

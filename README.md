@@ -7,6 +7,7 @@ A phone-friendly web app (installable PWA) for tracking calories, macros, vitami
 - **Food database search** across USDA FoodData Central (whole foods, best vitamin/mineral data) and Open Food Facts (packaged foods).
 - **Restaurants**: pick a restaurant, then browse or filter its menu. Ships with sample menus for McDonald's, Wendy's, Taco Bell and Chick-fil-A; real data sources plug in through a small provider interface.
 - **Calories burned and daily deficit/surplus**: pulls active and resting calories from Garmin Connect (or takes them from Apple Health via a Shortcut, or typed in) and shows eaten − burned for each day, plus a 7-day deficit/surplus chart on Trends.
+- **Recipes**: paste a whole recipe (title, servings, ingredients, directions) and the app reads the ingredient list, looks each one up in USDA FoodData Central, converts cups/tbsp/cloves/"1 large onion" into grams using USDA's own portion weights, and shows calories, macros, vitamins and minerals per serving. You can change any match or amount before saving. Saved recipes live under the Recipes tab (and Add food → Recent) for logging a serving in one tap, and sync with your account. Matches you pick are remembered on that device for the next recipe.
 - **Custom foods**, recent foods, 7-day trends, editable goals, and JSON backup/restore.
 - **Accounts and sync** (optional): sign in with email and password and your log, goals, custom foods, recent foods and settings sync across devices. Without an account, data stays in the browser's local storage on the device.
 

@@ -113,10 +113,75 @@
       </div>
 
       <div class="tab" data-tab="mine" hidden>
+        <div class="card-head" id="my-recipes-head" hidden><h2>My recipes</h2></div>
+        <ul id="my-recipes" class="food-list"></ul>
         <div class="card-head"><h2>My foods</h2><button class="btn small" id="new-food">+ Create food</button></div>
         <ul id="my-foods" class="food-list"></ul>
         <div class="card-head"><h2>Recently added</h2></div>
         <ul id="recent-foods" class="food-list"></ul>
+      </div>
+    </section>
+
+    <!-- RECIPES -->
+    <section class="view" id="view-recipes" data-view="recipes" hidden>
+      <div id="recipe-list-wrap" class="tab">
+        <div class="card-head"><h2>Recipes</h2><button class="btn small primary" id="rx-new">+ New recipe</button></div>
+        <ul id="recipe-list" class="food-list"></ul>
+        <div class="card" id="recipe-empty">
+          <p class="muted small" style="margin:0">Paste a recipe (ingredients and directions, straight from a website or a card) and Fuel Log works out calories, macros, vitamins and minerals per serving. Saved recipes show up here and under Add food so you can log a serving in one tap.</p>
+        </div>
+      </div>
+
+      <div id="recipe-detail" class="tab" hidden>
+        <div class="menu-head"><button class="btn ghost" id="rd-back">‹ Recipes</button></div>
+        <div class="card form">
+          <div><h2 id="rd-name"></h2><div class="muted small" id="rd-meta"></div></div>
+          <div id="rd-summary" class="form"></div>
+          <div class="btn-row">
+            <button class="btn primary grow" id="rd-log">Log a serving</button>
+            <button class="btn" id="rd-edit">Edit</button>
+          </div>
+        </div>
+        <div class="card-head"><h2>Ingredients</h2><span class="muted small">kcal, whole recipe</span></div>
+        <ul id="rd-ingredients" class="food-list rx-static"></ul>
+        <div class="card" id="rd-directions-card">
+          <div class="card-head"><h2>Directions</h2></div>
+          <div id="rd-directions" class="rx-directions"></div>
+        </div>
+      </div>
+
+      <div id="recipe-editor" class="tab" hidden>
+        <div class="menu-head"><button class="btn ghost" id="rx-back">‹ Back</button><h2 id="rx-title">New recipe</h2></div>
+        <form class="card form" id="rx-form">
+          <label>Paste the recipe <textarea name="text" id="rx-text" rows="8" placeholder="Paste the whole recipe here: title, servings, ingredients and directions.&#10;&#10;Ingredients&#10;2 cups cooked rice&#10;1 lb chicken breast&#10;1 tbsp olive oil&#10;...&#10;&#10;Directions&#10;1. Heat the oil..."></textarea></label>
+          <button class="btn primary" type="button" id="rx-calc">Work out nutrition</button>
+          <div class="status" id="rx-status"></div>
+          <div class="grid2">
+            <label>Name <input name="name" placeholder="e.g. Chicken stir fry" autocomplete="off"></label>
+            <label>Servings <input name="servings" type="number" min="1" step="1" inputmode="numeric" value="4"></label>
+          </div>
+        </form>
+
+        <div id="rx-ing-card" class="tab">
+          <div class="card form">
+            <div id="rx-summary" class="form"></div>
+            <p class="muted small" id="rx-total-note"></p>
+          </div>
+          <div class="card-head"><h2>Ingredients</h2><span class="muted small">tap a match to change it</span></div>
+          <div id="rx-ingredients" class="rx-list"></div>
+          <form id="rx-add-form" class="search-row">
+            <input id="rx-add-input" placeholder="Add an ingredient, e.g. 2 tbsp butter" autocomplete="off" enterkeyhint="done">
+            <button class="btn" type="submit">Add</button>
+          </form>
+        </div>
+
+        <form class="card form" onsubmit="return false">
+          <label>Directions <textarea name="directions" form="rx-form" rows="6" placeholder="Optional"></textarea></label>
+        </form>
+        <div class="btn-row">
+          <button class="btn danger" type="button" id="rx-delete" hidden>Delete</button>
+          <button class="btn primary grow" type="button" id="rx-save">Save recipe</button>
+        </div>
       </div>
     </section>
 
@@ -226,6 +291,7 @@
   <nav class="tabbar" aria-label="Main">
     <button data-nav="today" class="active"><span class="ti">◐</span>Today</button>
     <button data-nav="add"><span class="ti">＋</span>Add food</button>
+    <button data-nav="recipes"><span class="ti">▤</span>Recipes</button>
     <button data-nav="trends"><span class="ti">▥</span>Trends</button>
     <button data-nav="settings"><span class="ti">⚙</span>Settings</button>
   </nav>

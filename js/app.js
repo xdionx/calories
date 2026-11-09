@@ -6,6 +6,7 @@ import { RESTAURANTS, getRestaurant } from './providers/restaurants/index.js';
 import { startScanner } from './scanner.js';
 import * as sync from './sync.js';
 import * as garmin from './garmin.js';
+import * as recipeUI from './recipe-ui.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -50,6 +51,8 @@ function toast(msg) {
 
 /* ---------------- Navigation ---------------- */
 function showView(view) {
+  if (ui.view === 'recipes' && view === 'recipes') return recipeUI.home();
+  if (ui.view === 'recipes' && view !== 'recipes' && !recipeUI.canLeave()) return;
   ui.view = view;
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== view));
   $$('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.nav === view));
@@ -57,6 +60,7 @@ function showView(view) {
   if (view === 'add') renderAddTab();
   if (view === 'trends') renderTrends();
   if (view === 'settings') renderSettings();
+  if (view === 'recipes') recipeUI.render();
   window.scrollTo({ top: 0 });
 }
 
@@ -322,7 +326,7 @@ async function runSearch(query) {
   // Local matches first (my foods + recent), then both databases.
   const q = query.toLowerCase();
   const { myFoods, recent } = store.getState();
-  const local = [...myFoods, ...recent].filter((f, i, a) => a.findIndex((x) => x.id === f.id) === i && f.name.toLowerCase().includes(q)).slice(0, 5);
+  const local = [...recipeUI.recipeFoods(), ...myFoods, ...recent].filter((f, i, a) => a.findIndex((x) => x.id === f.id) === i && f.name.toLowerCase().includes(q)).slice(0, 5);
 
   let html = '';
   if (local.length) html += `<li class="list-label">Your foods</li>${local.map(foodRow).join('')}`;
@@ -432,6 +436,9 @@ async function filterRestaurant(query) {
 /* Recent / My foods */
 function renderMine() {
   const { myFoods, recent } = store.getState();
+  const recipes = recipeUI.recipeFoods();
+  $('#my-recipes-head').hidden = !recipes.length;
+  $('#my-recipes').innerHTML = recipes.map(foodRow).join('');
   $('#my-foods').innerHTML = myFoods.map(foodRow).join('');
   $('#recent-foods').innerHTML = recent.map(foodRow).join('');
   if (!myFoods.length && !recent.length) {
@@ -890,6 +897,7 @@ store.subscribe((_state, source) => {
   renderToday();
   if (ui.view === 'trends') renderTrends();
   if (ui.view === 'add' && source === 'sync' && ui.addTab === 'mine') renderMine();
+  if (ui.view === 'recipes' && source === 'sync') recipeUI.refresh();
   // Goals or settings arriving from another device: refresh the form unless
   // the user is typing in it.
   const typing = document.activeElement?.matches('#goals-form input, #api-form input, #garmin-form input');
@@ -933,6 +941,7 @@ function importBurnFromUrl() {
 importBurnFromUrl();
 bind();
 bindAccount();
+recipeUI.init({ openFood, toast });
 sync.init();
 renderDate();
 renderToday();
