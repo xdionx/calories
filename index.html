@@ -44,6 +44,8 @@
 
       <div class="card balance" id="balance-card"></div>
 
+      <div class="card weight-row" id="weight-card"></div>
+
       <div id="meals"></div>
 
       <div class="card">
@@ -192,6 +194,10 @@
         <div id="trend-chart" class="trend-chart"></div>
       </div>
       <div class="card">
+        <div class="card-head"><h2>Weight, last 30 days</h2><span class="muted small" id="trend-weight-sum"></span></div>
+        <div id="trend-weight" class="trend-weight"></div>
+      </div>
+      <div class="card">
         <div class="card-head"><h2>Deficit or surplus</h2><span class="muted small" id="trend-net-sum"></span></div>
         <div id="trend-net" class="trend-net"></div>
       </div>
@@ -240,6 +246,25 @@
         <p class="muted small" id="account-loading">Loading…</p>
         <p class="muted small" id="account-off" hidden>Accounts are not set up for this copy of the app yet, so your data stays on this device.</p>
       </div>
+
+      <form class="card form" id="profile-form">
+        <h2>Your profile</h2>
+        <p class="muted small">Used to recommend calories and macros. Weight comes from your daily weigh-ins (or Garmin).</p>
+        <div class="grid2">
+          <label>Birthday <input type="date" name="birthday"></label>
+          <label>Sex <select name="sex"><option value="">Choose</option><option value="female">Female</option><option value="male">Male</option></select></label>
+          <label>Units <select name="units"><option value="imperial">lb, ft/in</option><option value="metric">kg, cm</option></select></label>
+          <label class="height-imperial">Height
+            <span class="inline-inputs"><input type="number" name="heightFt" min="3" max="8" step="1" inputmode="numeric" placeholder="ft"><input type="number" name="heightIn" min="0" max="11.9" step="0.5" inputmode="decimal" placeholder="in"></span>
+          </label>
+          <label class="height-metric" hidden>Height (cm) <input type="number" name="heightCm" min="90" max="250" step="1" inputmode="numeric"></label>
+          <label>Goal <select name="plan"><option value="lose">Lose weight</option><option value="maintain">Maintain weight</option><option value="gain">Gain weight</option></select></label>
+          <label class="rate-field">Rate <select name="rate"></select></label>
+        </div>
+        <label class="check"><input type="checkbox" name="autoGoals"> Keep my daily goals updated from this (and Garmin activity)</label>
+        <button class="btn primary" type="submit">Save profile</button>
+        <div class="recommend" id="recommend"></div>
+      </form>
 
       <form class="card form" id="goals-form">
         <h2>Daily goals</h2>
@@ -345,6 +370,24 @@
       </div>
       <div class="sheet-actions">
         <button class="btn primary grow" type="submit">Save food</button>
+      </div>
+    </form>
+  </dialog>
+
+ <!-- Weight for a day -->
+  <dialog id="weight-dialog" class="sheet">
+    <form id="weight-form">
+      <div class="sheet-head">
+        <div>
+          <h2>Weight</h2>
+          <div class="muted small" id="weight-date"></div>
+        </div>
+        <button class="icon-btn" type="button" id="weight-close" aria-label="Close">✕</button>
+      </div>
+      <label><span id="weight-label">Weight (lb)</span> <input name="weight" type="number" min="1" step="0.1" inputmode="decimal" required></label>
+      <div class="sheet-actions">
+        <button class="btn danger" type="button" id="weight-clear" hidden>Clear</button>
+        <button class="btn primary grow" type="submit">Save</button>
       </div>
     </form>
   </dialog>

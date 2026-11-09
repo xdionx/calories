@@ -3,7 +3,7 @@
 const CACHE = 'fuel-log-v8';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
-  'js/app.js', 'js/store.js', 'js/sync.js', 'js/garmin.js', 'js/config.js', 'js/nutrients.js', 'js/scanner.js',
+  'js/app.js', 'js/store.js', 'js/sync.js', 'js/garmin.js', 'js/targets.js', 'js/config.js', 'js/nutrients.js', 'js/scanner.js',
   'js/recipes.js', 'js/recipe-ui.js',
   'js/providers/index.js', 'js/providers/openfoodfacts.js', 'js/providers/usda.js',
   'js/providers/restaurants/index.js', 'js/providers/restaurants/provider.js', 'js/providers/restaurants/sample-menus.js',

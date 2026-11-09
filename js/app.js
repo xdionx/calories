@@ -7,6 +7,7 @@ import { startScanner } from './scanner.js';
 import * as sync from './sync.js';
 import * as garmin from './garmin.js';
 import * as recipeUI from './recipe-ui.js';
+import * as targets from './targets.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -120,6 +121,46 @@ function renderToday() {
 
   renderMicros(totals);
   renderBalance();
+  renderWeight();
+}
+
+/* ---------------- Weight ---------------- */
+const fmtWeight = (kg) => `${(Math.round(targets.kgToDisplay(kg) * 10) / 10).toLocaleString()} ${targets.weightUnit()}`;
+
+function dayLabel(key, opts = { weekday: 'short', month: 'short', day: 'numeric' }) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, opts);
+}
+
+function renderWeight() {
+  const w = store.weightFor(ui.date);
+  const last = w || store.latestWeight(ui.date);
+  const card = $('#weight-card');
+  if (w) {
+    card.innerHTML = `<div class="w-main"><span class="muted small">Weight</span><b>${fmtWeight(w.kg)}</b>
+      <span class="muted small">${w.source === 'garmin' ? 'from Garmin' : 'entered by you'}</span></div>
+      <button class="btn ghost small" data-weight-edit>Edit</button>`;
+  } else {
+    card.innerHTML = `<div class="w-main"><span class="muted small">Weight</span>
+      <span class="muted small">${last ? `last ${fmtWeight(last.kg)} on ${esc(dayLabel(last.date, { month: 'short', day: 'numeric' }))}` : 'not logged yet'}</span></div>
+      <button class="btn small" data-weight-edit>+ Log weight</button>`;
+  }
+}
+
+const weightDlg = { date: null };
+function openWeight(date = ui.date) {
+  weightDlg.date = date;
+  const w = store.weightFor(date);
+  const prev = w || store.latestWeight(date);
+  const f = $('#weight-form').elements;
+  $('#weight-label').textContent = `Weight (${targets.weightUnit()})`;
+  f.weight.value = w ? (Math.round(targets.kgToDisplay(w.kg) * 10) / 10) : '';
+  f.weight.placeholder = prev ? String(Math.round(targets.kgToDisplay(prev.kg) * 10) / 10) : '';
+  $('#weight-date').textContent = dayLabel(date, { weekday: 'long', month: 'short', day: 'numeric' }) +
+    (w?.source === 'garmin' ? ' · from Garmin. Garmin will replace a typed weight if it has one for this day.' : '');
+  $('#weight-clear').hidden = !w;
+  $('#weight-dialog').showModal();
+  f.weight.focus();
 }
 
 /* ---------------- Energy balance ---------------- */
@@ -507,6 +548,7 @@ function renderTrends() {
   });
 
   renderTrendNet(days.map((d) => d.key));
+  renderTrendWeight();
 
   $('#trend-avg').textContent = logged.length ? `avg ${round(avg('kcal')).toLocaleString()} kcal on ${logged.length} logged day${logged.length > 1 ? 's' : ''}` : 'No days logged yet';
   $('#trend-macros').innerHTML = MACROS.map((m) => macroBar(m, avg(m.key), goals[m.key])).join('') +
@@ -517,6 +559,36 @@ function renderTrends() {
       return `<div class="macro-row"><div class="lbl"><span>${n.label}</span><b>${formatAmount(v, n.unit)} / ${formatAmount(n.dv, n.unit)}</b></div>
         <div class="bar"><i style="width:${Math.min(pct, 100)}%" class="${k === 'sodium' && pct > 100 ? 'over' : ''}"></i></div></div>`;
     }).join('');
+}
+
+function renderTrendWeight() {
+  const end = ui.date;
+  const start = store.shiftDate(end, -29);
+  const list = store.weightsBetween(start, end);
+  const box = $('#trend-weight');
+  if (list.length < 2) {
+    $('#trend-weight-sum').textContent = list.length ? fmtWeight(list[0].kg) : '';
+    box.innerHTML = '<div class="empty">Log your weight on a few days (or let Garmin) to see the trend.</div>';
+    return;
+  }
+  const vals = list.map((w) => targets.kgToDisplay(w.kg));
+  let lo = Math.min(...vals);
+  let hi = Math.max(...vals);
+  const pad = Math.max((hi - lo) * 0.15, 0.5);
+  lo -= pad;
+  hi += pad;
+  const dayIndex = (key) => Math.round((Date.parse(key) - Date.parse(start)) / 86_400_000);
+  const pts = list.map((w, i) => [(dayIndex(w.date) / 29) * 100, 100 - ((vals[i] - lo) / (hi - lo)) * 100]);
+  const change = vals[vals.length - 1] - vals[0];
+  const unit = targets.weightUnit();
+  $('#trend-weight-sum').textContent = `${change > 0 ? '+' : change < 0 ? '−' : ''}${Math.abs(Math.round(change * 10) / 10)} ${unit} since ${dayLabel(list[0].date, { month: 'short', day: 'numeric' })}`;
+  box.innerHTML = `
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Weight trend">
+      <polyline class="wline" points="${pts.map((p) => p.join(',')).join(' ')}"/>
+    </svg>
+    <div class="wlabels"><span>${esc(dayLabel(start, { month: 'short', day: 'numeric' }))}</span>
+      <span>${Math.round(lo * 10) / 10}–${Math.round(hi * 10) / 10} ${unit}</span>
+      <span>${esc(dayLabel(end, { month: 'short', day: 'numeric' }))}</span></div>`;
 }
 
 function renderTrendNet(keys) {
@@ -550,6 +622,95 @@ function renderSettings() {
   updateGoalCheck();
   renderAccount();
   renderGarmin();
+  renderProfile();
+}
+
+/* ---------------- Profile + recommended goals ---------------- */
+function renderProfile() {
+  const p = store.getProfile();
+  const f = $('#profile-form').elements;
+  f.birthday.value = p.birthday || '';
+  f.sex.value = p.sex || '';
+  f.units.value = p.units || 'imperial';
+  f.plan.value = p.plan || 'maintain';
+  f.autoGoals.checked = Boolean(p.autoGoals);
+  fillHeight(+p.heightCm || 0);
+  syncProfileFields(p.rate);
+  renderRecommend();
+}
+
+function fillHeight(cm) {
+  const f = $('#profile-form').elements;
+  const totalIn = cm / 2.54;
+  f.heightFt.value = cm ? Math.floor(totalIn / 12) : '';
+  f.heightIn.value = cm ? Math.round((totalIn % 12) * 2) / 2 : '';
+  f.heightCm.value = cm ? Math.round(cm) : '';
+}
+
+// Shows the right height inputs and rate choices for the chosen units/goal.
+function syncProfileFields(rate) {
+  const f = $('#profile-form').elements;
+  const imperial = f.units.value === 'imperial';
+  $('#profile-form .height-imperial').hidden = !imperial;
+  $('#profile-form .height-metric').hidden = imperial;
+  $('#profile-form .rate-field').hidden = f.plan.value === 'maintain';
+  const opts = imperial
+    ? [[0.5, '½ lb a week'], [1, '1 lb a week'], [1.5, '1½ lb a week'], [2, '2 lb a week']].map(([lb, t]) => [lb * 0.45359237, t])
+    : [[0.25, '0.25 kg a week'], [0.5, '0.5 kg a week'], [0.75, '0.75 kg a week'], [1, '1 kg a week']];
+  const current = rate || 0.45;
+  let best = 0;
+  opts.forEach(([kg], i) => {
+    if (Math.abs(kg - current) < Math.abs(opts[best][0] - current)) best = i;
+  });
+  f.rate.innerHTML = opts.map(([kg, t], i) => `<option value="${kg}" ${i === best ? 'selected' : ''}>${t}</option>`).join('');
+}
+
+// Height from whichever inputs are showing, in cm.
+function formHeightCm(imperial) {
+  const f = $('#profile-form').elements;
+  const cm = imperial ? ((+f.heightFt.value || 0) * 12 + (+f.heightIn.value || 0)) * 2.54 : +f.heightCm.value || 0;
+  return cm ? Math.round(cm * 10) / 10 : 0;
+}
+
+function readProfileForm() {
+  const f = $('#profile-form').elements;
+  return {
+    birthday: f.birthday.value,
+    sex: f.sex.value,
+    units: f.units.value,
+    heightCm: formHeightCm(f.units.value === 'imperial'),
+    plan: f.plan.value,
+    rate: +f.rate.value || 0,
+    autoGoals: f.autoGoals.checked,
+  };
+}
+
+function renderRecommend() {
+  const box = $('#recommend');
+  const r = targets.recommend();
+  if (!r.ready) {
+    const names = { birthday: 'birthday', sex: 'sex', height: 'height', weight: 'a weight (log one on the Today screen)' };
+    box.innerHTML = `<p class="muted small">Add your ${r.missing.map((m) => names[m]).join(', ')} and save to get recommended goals.</p>`;
+    return;
+  }
+  const g = r.goals;
+  const change = r.dailyChange
+    ? `a ${fmt(Math.abs(r.dailyChange))} kcal ${r.dailyChange < 0 ? 'deficit' : 'surplus'} a day`
+    : 'no deficit';
+  const auto = store.getProfile().autoGoals;
+  box.innerHTML = `
+    <h3 class="small">Recommended daily goals</h3>
+    <div class="rec-goals">
+      <div><b>${fmt(g.kcal)}</b><span>kcal</span></div>
+      <div><b>${g.protein} g</b><span>protein</span></div>
+      <div><b>${g.carbs} g</b><span>carbs</span></div>
+      <div><b>${g.fat} g</b><span>fat</span></div>
+    </div>
+    <p class="muted small">You burn about <b>${fmt(r.tdee)}</b> kcal a day (${esc(r.level?.label || '')}), based on ${esc(r.basis)}. Resting burn is about ${fmt(g.restingKcal)}.
+      ${esc(targets.PLANS[r.plan])} means ${change}. Protein is ${r.proteinPerKg} g per kg of body weight (${fmtWeight(r.kg)}), fat is about 28% of calories, and carbs make up the rest.</p>
+    ${r.notes.map((n) => `<p class="muted small">${esc(n)}</p>`).join('')}
+    <p class="muted small">General guidelines, not medical advice.</p>
+    ${auto ? '<p class="small">Your daily goals follow this automatically.</p>' : '<button class="btn" type="button" id="use-recommend">Use these goals</button>'}`;
 }
 
 function renderGarmin() {
@@ -574,7 +735,8 @@ async function pullGarmin(days = 14) {
   const end = store.todayKey();
   try {
     const r = await garmin.pull(store.shiftDate(end, -(days - 1)), end);
-    toast(r.days ? `Garmin: ${r.days} day${r.days > 1 ? 's' : ''} of calories` : 'Garmin had no calories for those days');
+    const w = r.weights ? `, ${r.weights} weigh-in${r.weights > 1 ? 's' : ''}` : '';
+    toast(r.days ? `Garmin: ${r.days} day${r.days > 1 ? 's' : ''} of calories${w}` : 'Garmin had no calories for those days');
   } catch (e) {
     toast(e.message);
   }
@@ -804,8 +966,58 @@ function bind() {
     e.preventDefault();
     const f = e.target.elements;
     store.setGoals({ kcal: +f.kcal.value || 0, protein: +f.protein.value || 0, carbs: +f.carbs.value || 0, fat: +f.fat.value || 0, restingKcal: +f.restingKcal.value || 0 });
-    toast('Goals saved');
+    if (store.getProfile().autoGoals) {
+      // Typing goals by hand means the user wants to set them themselves.
+      store.setProfile({ autoGoals: false });
+      toast('Goals saved. Automatic goals turned off.');
+      renderProfile();
+    } else toast('Goals saved');
   };
+  // Profile
+  const pf = $('#profile-form');
+  pf.elements.units.onchange = () => {
+    // Keep the typed height when switching units.
+    fillHeight(formHeightCm(pf.elements.units.value !== 'imperial'));
+    syncProfileFields(+pf.elements.rate.value);
+  };
+  pf.elements.plan.onchange = () => syncProfileFields(+pf.elements.rate.value);
+  pf.onsubmit = (e) => {
+    e.preventDefault();
+    const p = readProfileForm();
+    if (p.birthday && targets.ageOn(p.birthday) == null) return toast('Check your birthday.');
+    store.setProfile(p);
+    const changed = targets.applyIfAuto();
+    toast(changed ? 'Profile saved. Goals updated.' : 'Profile saved');
+    renderSettings();
+  };
+  pf.addEventListener('click', (e) => {
+    if (e.target.id !== 'use-recommend') return;
+    const r = targets.recommend();
+    if (!r.ready) return;
+    store.setGoals(r.goals);
+    toast('Goals updated');
+    renderSettings();
+  });
+
+  // Weight dialog
+  $('#weight-card').addEventListener('click', (e) => {
+    if (e.target.closest('[data-weight-edit]')) openWeight();
+  });
+  $('#weight-close').onclick = () => $('#weight-dialog').close();
+  $('#weight-form').onsubmit = (e) => {
+    e.preventDefault();
+    const v = parseFloat(e.target.elements.weight.value);
+    if (!(v > 0)) return;
+    store.setWeight(weightDlg.date, { kg: targets.displayToKg(v), source: 'manual' });
+    $('#weight-dialog').close();
+    toast(targets.applyIfAuto() ? 'Weight saved. Goals updated.' : 'Weight saved');
+  };
+  $('#weight-clear').onclick = () => {
+    store.removeWeight(weightDlg.date);
+    $('#weight-dialog').close();
+    toast('Cleared');
+  };
+
   $('#garmin-form').onsubmit = (e) => {
     e.preventDefault();
     const input = e.target.elements.garminKey;
@@ -900,7 +1112,7 @@ store.subscribe((_state, source) => {
   if (ui.view === 'recipes' && source === 'sync') recipeUI.refresh();
   // Goals or settings arriving from another device: refresh the form unless
   // the user is typing in it.
-  const typing = document.activeElement?.matches('#goals-form input, #api-form input, #garmin-form input');
+  const typing = document.activeElement?.matches('#goals-form input, #api-form input, #garmin-form input, #profile-form input, #profile-form select');
   if (ui.view === 'settings' && source === 'sync' && !typing) renderSettings();
 });
 
@@ -916,8 +1128,13 @@ sync.onChange((a) => {
   lastUserId = a.user?.id || null;
 });
 
-garmin.onChange(() => {
-  if (ui.view === 'settings') renderGarmin();
+garmin.onChange((st) => {
+  // New Garmin calories or weight can move the recommended goals.
+  if (st.state === 'ok') targets.applyIfAuto();
+  if (ui.view === 'settings') {
+    renderGarmin();
+    renderRecommend();
+  }
   if (ui.view === 'today') renderBalance();
 });
 
@@ -946,6 +1163,7 @@ sync.init();
 renderDate();
 renderToday();
 garmin.refreshAround(ui.date);
+targets.applyIfAuto();
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Service worker not registered', e));
