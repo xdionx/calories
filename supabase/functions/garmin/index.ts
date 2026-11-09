@@ -3,8 +3,9 @@
 // The browser can't call Garmin's Personal API directly, so the app sends the
 // user's Garmin Personal API key here along with a date range. This function:
 //   1. exchanges the key for a Garmin access token,
-//   2. reads Garmin's daily summaries for that range,
-//   3. returns them to the app.
+//   2. reads Garmin's daily summaries (calories) and, when asked, weigh-ins
+//      for that range,
+//   3. returns them to the app as { summaries, weight }.
 // Nothing is stored. It only answers signed-in Fuel Log users (checked below
 // with Supabase Auth), so it isn't an open proxy.
 //
@@ -19,6 +20,7 @@
 const GARMIN = 'https://personal.connectapi.garmin.com';
 const TOKEN_PATH = '/personalapitoken-service/personal-api/personal-api-key/token';
 const SUMMARIES_PATH = '/usersummary-service/v2/dailysummaries';
+const WEIGHT_PATH = '/weight-service/weight/range'; // /{start}/{end}?includeAll=true
 const MAX_DAYS = 31;
 
 const cors = {
@@ -75,8 +77,7 @@ async function accessToken(apiKey: string, fresh = false) {
   return token;
 }
 
-async function summaries(apiKey: string, startDate: string, endDate: string) {
-  const url = `${GARMIN}${SUMMARIES_PATH}?startDate=${startDate}&endDate=${endDate}`;
+async function garminGet(apiKey: string, url: string, what: string) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const token = await accessToken(apiKey, attempt > 0);
     const res = await fetch(url, { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` } });
@@ -84,7 +85,7 @@ async function summaries(apiKey: string, startDate: string, endDate: string) {
     if (res.status === 204) return { data: [] };
     const text = await res.text();
     if (!res.ok) {
-      const why = res.status === 429 ? 'Garmin says too many requests. Try again in a few minutes.' : `Garmin daily summaries failed (${res.status}).`;
+      const why = res.status === 429 ? 'Garmin says too many requests. Try again in a few minutes.' : `Garmin ${what} failed (${res.status}).`;
       throw Object.assign(new Error(why), { status: res.status === 429 ? 429 : 502, detail: text.slice(0, 500) });
     }
     return text ? JSON.parse(text) : { data: [] };
@@ -110,19 +111,30 @@ Deno.serve(async (req) => {
   }
   if (req.method !== 'POST') return reply(405, { error: 'Use POST.' });
   if (!(await signedIn(req))) return reply(401, { error: 'Sign in to Fuel Log first.' });
-  let body: { apiKey?: string; startDate?: string; endDate?: string };
+  let body: { apiKey?: string; startDate?: string; endDate?: string; include?: string[] };
   try {
     body = await req.json();
   } catch {
     return reply(400, { error: 'Send JSON: { apiKey, startDate, endDate }.' });
   }
-  const { apiKey, startDate, endDate } = body;
+  const { apiKey, startDate, endDate, include = [] } = body;
   if (!apiKey || typeof apiKey !== 'string') return reply(400, { error: 'Add your Garmin Personal API key in Settings.' });
   if (!isDate(startDate) || !isDate(endDate) || startDate > endDate) return reply(400, { error: 'Dates must be YYYY-MM-DD, start before end.' });
   const days = (Date.parse(endDate) - Date.parse(startDate)) / 86_400_000 + 1;
   if (days > MAX_DAYS) return reply(400, { error: `Ask for ${MAX_DAYS} days or fewer at a time.` });
   try {
-    return reply(200, await summaries(apiKey.trim(), startDate, endDate));
+    const key = apiKey.trim();
+    const summaries = await garminGet(key, `${GARMIN}${SUMMARIES_PATH}?startDate=${startDate}&endDate=${endDate}`, 'daily summaries');
+    const out: Record<string, unknown> = { summaries };
+    if (Array.isArray(include) && include.includes('weight')) {
+      // Weight is a bonus: if it fails, still return the calories.
+      try {
+        out.weight = await garminGet(key, `${GARMIN}${WEIGHT_PATH}/${startDate}/${endDate}?includeAll=true`, 'weight');
+      } catch (e) {
+        out.weightError = (e as Error).message;
+      }
+    }
+    return reply(200, out);
   } catch (e) {
     const err = e as Error & { status?: number; detail?: string };
     console.error('garmin', err.message, err.detail || '');

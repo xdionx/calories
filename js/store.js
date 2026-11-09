@@ -19,9 +19,17 @@
 // source: 'garmin' | 'manual' | 'health', updatedAt }. `resting` may be null
 // (then the "Resting burn" goal is used).
 //
+// Body weight per day: weights['YYYY-MM-DD'] = { date, kg, source:
+// 'garmin' | 'manual', updatedAt }. Always stored in kg.
+//
+// settings.profile = { birthday: 'YYYY-MM-DD', sex: 'male' | 'female',
+// heightCm, units: 'imperial' | 'metric', plan: 'lose' | 'maintain' | 'gain',
+// rate (kg/week), autoGoals } drives the recommended goals (js/targets.js).
+//
 // Sync model: the state is split into "items", each with a last-changed time:
 //   entry:<id>  one log entry          food:<id>  one custom food
 //   burn:<date> calories burned that day
+//   weight:<date> body weight that day
 //   goals, settings, recent            whole objects
 // Changing something stamps it and marks its item pending. Sync pushes pending
 // items and applies newer remote ones (last write wins per item).
@@ -36,11 +44,12 @@ const DEFAULT_STATE = {
   // restingKcal: calories burned at rest per day (BMR), used when the
   // source of a day's burn doesn't report it.
   goals: { kcal: 2000, protein: 150, carbs: 200, fat: 67, restingKcal: 0 },
-  settings: { usdaApiKey: '' },
+  settings: { usdaApiKey: '', profile: {} },
   log: {}, // { 'YYYY-MM-DD': [entry, ...] }
   recent: [], // recently used foods (most recent first)
   myFoods: [], // custom foods the user created
   burn: {}, // { 'YYYY-MM-DD': { date, active, resting, source, updatedAt } }
+  weights: {}, // { 'YYYY-MM-DD': { date, kg, source, updatedAt } }
   stamps: { goals: 0, settings: 0, recent: 0 }, // last-changed times of whole-object items
 };
 
@@ -61,6 +70,7 @@ function normalize(parsed) {
     goals: { ...DEFAULT_STATE.goals, ...(parsed.goals || {}) },
     settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) },
     burn: parsed.burn && typeof parsed.burn === 'object' ? parsed.burn : {},
+    weights: parsed.weights && typeof parsed.weights === 'object' ? parsed.weights : {},
     stamps: { ...DEFAULT_STATE.stamps, ...(parsed.stamps || {}) },
   };
 }
@@ -232,6 +242,46 @@ export function balanceFor(date) {
   return { eaten, active: b.active || 0, resting, restingFromGoal, burned, net: eaten - burned, source: b.source };
 }
 
+/* ---------------- Body weight ---------------- */
+
+export const weightFor = (date) => state.weights[date] || null;
+
+// Most recent weight on or before `date`.
+export function latestWeight(date = todayKey()) {
+  let best = null;
+  for (const w of Object.values(state.weights)) if (w.date <= date && (!best || w.date > best.date)) best = w;
+  return best;
+}
+
+// Weights between two dates (inclusive), oldest first.
+export function weightsBetween(start, end) {
+  return Object.values(state.weights).filter((w) => w.date >= start && w.date <= end).sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
+export function setWeight(date, { kg, source }) {
+  const value = Math.round(+kg * 100) / 100;
+  if (!(value > 0)) return false;
+  const prev = state.weights[date];
+  if (prev && prev.kg === value && prev.source === source) return false;
+  state.weights[date] = { date, kg: value, source, updatedAt: stamp() };
+  touch(`weight:${date}`);
+  save();
+  return true;
+}
+
+export function removeWeight(date) {
+  if (!state.weights[date]) return;
+  delete state.weights[date];
+  touchDeleted(`weight:${date}`);
+  save();
+}
+
+export const getProfile = () => state.settings.profile || {};
+
+export function setProfile(changes) {
+  setSettings({ profile: { ...getProfile(), ...changes } });
+}
+
 /* ---------------- Custom foods, goals, settings ---------------- */
 
 export function saveMyFood(food) {
@@ -284,6 +334,7 @@ export function importData(json) {
   }
   state.myFoods = state.myFoods.map((f) => ({ ...f, updatedAt: now }));
   for (const b of Object.values(state.burn)) b.updatedAt = now;
+  for (const w of Object.values(state.weights)) w.updatedAt = now;
   state.stamps = { goals: now, settings: now, recent: now };
   const after = allItems(state);
   for (const id of before) if (!after.has(id)) touchDeleted(id);
@@ -301,6 +352,7 @@ function allItems(s) {
   }
   for (const f of s.myFoods) items.set(`food:${f.id}`, { kind: 'food', data: f, updatedAt: f.updatedAt || 0 });
   for (const b of Object.values(s.burn || {})) items.set(`burn:${b.date}`, { kind: 'burn', data: b, updatedAt: b.updatedAt || 0 });
+  for (const w of Object.values(s.weights || {})) items.set(`weight:${w.date}`, { kind: 'weight', data: w, updatedAt: w.updatedAt || 0 });
   items.set('goals', { kind: 'goals', data: s.goals, updatedAt: s.stamps.goals || 0 });
   items.set('settings', { kind: 'settings', data: s.settings, updatedAt: s.stamps.settings || 0 });
   items.set('recent', { kind: 'recent', data: s.recent, updatedAt: s.stamps.recent || 0 });
@@ -324,11 +376,15 @@ function findItem(itemId) {
     const b = state.burn[itemId.slice(5)];
     return b ? { kind: 'burn', data: b, updatedAt: b.updatedAt || 0 } : null;
   }
-  return allItems({ ...state, log: {}, myFoods: [], burn: {} }).get(itemId) || null;
+  if (itemId.startsWith('weight:')) {
+    const w = state.weights[itemId.slice(7)];
+    return w ? { kind: 'weight', data: w, updatedAt: w.updatedAt || 0 } : null;
+  }
+  return allItems({ ...state, log: {}, myFoods: [], burn: {}, weights: {} }).get(itemId) || null;
 }
 
 const kindOf = (itemId) => {
-  for (const k of ['entry', 'food', 'burn']) if (itemId.startsWith(`${k}:`)) return k;
+  for (const k of ['entry', 'food', 'burn', 'weight']) if (itemId.startsWith(`${k}:`)) return k;
   return itemId;
 };
 
@@ -407,6 +463,10 @@ function putItem(row) {
     if (!deleted) {
       state.myFoods = [...state.myFoods, { ...data, updatedAt: row.updated_at }].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     }
+  } else if (kind === 'weight') {
+    const date = id.slice(7);
+    if (deleted) delete state.weights[date];
+    else state.weights[date] = { ...data, date, updatedAt: row.updated_at };
   } else if (kind === 'burn') {
     const date = id.slice(5);
     if (deleted) delete state.burn[date];
@@ -431,7 +491,7 @@ export function markAllPending() {
     if (!state.stamps[k] && !isDefault(k)) state.stamps[k] = 1;
   }
   for (const [id, item] of allItems(state)) {
-    if (item.updatedAt || item.kind === 'entry' || item.kind === 'food' || item.kind === 'burn') touch(id);
+    if (item.updatedAt || item.kind === 'entry' || item.kind === 'food' || item.kind === 'burn' || item.kind === 'weight') touch(id);
   }
   save('sync');
 }

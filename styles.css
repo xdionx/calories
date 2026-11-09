@@ -276,3 +276,25 @@ dialog.sheet form { display: flex; flex-direction: column; gap: 12px; padding: 1
 .tn-track::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--muted); }
 .tn-track i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: var(--accent); }
 .tn-track i.surplus { background: var(--carbs); }
+
+/* Weight */
+.weight-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
+.weight-row .w-main { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.weight-row .w-main b { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.trend-weight svg { width: 100%; height: 120px; display: block; }
+.trend-weight .wline { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.trend-weight .wdot { fill: var(--accent); }
+.trend-weight .wlabels { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+/* Profile + recommended goals */
+.inline-inputs { display: flex; gap: 6px; }
+.inline-inputs input { min-width: 0; }
+label.check { flex-direction: row; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--text); }
+label.check input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
+.recommend { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.recommend:empty { display: none; }
+.rec-goals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
+.rec-goals b { display: block; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.rec-goals span { font-size: 0.75rem; color: var(--muted); }
+.recommend p { margin: 0; }
+.recommend h3 { margin: 0; font-size: 0.95rem; }
