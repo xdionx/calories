@@ -1,6 +1,6 @@
 // Offline support: the app shell is cached; food database calls always go to
 // the network (and fail gracefully when offline).
-const CACHE = 'fuel-log-v2';
+const CACHE = 'fuel-log-v3';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
   'js/app.js', 'js/store.js', 'js/sync.js', 'js/config.js', 'js/nutrients.js', 'js/scanner.js',
@@ -26,7 +26,9 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   // Network first so updates show up, cache as fallback for offline.
   e.respondWith(
-    fetch(e.request)
+    // no-cache: always check with the server, so a phone never mixes a
+    // fresh page with older scripts from the browser's HTTP cache.
+    fetch(e.request, { cache: 'no-cache' })
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(e.request, copy));

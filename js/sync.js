@@ -26,6 +26,7 @@ const account = {
   error: '',
   lastSynced: null,
   recovering: false, // came back from a password-reset email
+  initError: '', // why sync could not start, shown on the sign-in form
 };
 const listeners = new Set();
 let client = null;
@@ -60,21 +61,32 @@ const redirectUrl = () => location.origin + location.pathname;
 
 export async function init() {
   if (!configured) return;
+  // Never leave the Account card stuck on "Loading…".
+  setTimeout(() => {
+    if (!account.ready) emit({ ready: true });
+  }, 8000);
   try {
     await loadScript(new URL('../vendor/supabase.js', import.meta.url).href);
+    client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    });
+    client.auth.onAuthStateChange((event, session) => {
+      // Supabase advises not to await its own calls inside this callback.
+      setTimeout(() => handleAuth(event, session), 0);
+    });
   } catch (e) {
-    console.warn(e);
-    emit({ ready: true, status: 'offline' });
+    console.warn('Sync could not start', e);
+    client = null;
+    const offline = !navigator.onLine;
+    emit({
+      ready: true,
+      status: offline ? 'offline' : 'error',
+      initError: offline
+        ? 'You are offline. Sign-in will work once you are connected; reopen the app then.'
+        : `Sign-in could not start on this browser (${e.message || e}). Try reloading the page.`,
+    });
     return;
   }
-  client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-  });
-
-  client.auth.onAuthStateChange((event, session) => {
-    // Supabase advises not to await its own calls inside this callback.
-    setTimeout(() => handleAuth(event, session), 0);
-  });
 
   store.subscribe((_state, source) => {
     if (source === 'local') schedule(1500);

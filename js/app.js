@@ -481,6 +481,8 @@ function renderAccount() {
   const a = sync.getAccount();
   const signedIn = Boolean(a.user);
   $('#account-off').hidden = a.configured;
+  $('#account-loading').hidden = !a.configured || a.ready;
+  if (a.initError && !$('#auth-status').textContent) authStatus('#auth-status', a.initError, 'error');
   $('#auth-form').hidden = !a.configured || !a.ready || signedIn;
   $('#account-info').hidden = !signedIn || a.recovering;
   $('#newpass-form').hidden = !signedIn || !a.recovering;
