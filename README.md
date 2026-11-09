@@ -50,7 +50,7 @@ Garmin opened a free Personal API in October 2026: any Garmin Connect user can m
 
 One-time setup:
 
-1. **Deploy the function.** Supabase dashboard → **Edge Functions → Deploy a new function → Via editor**. Name it `garmin`, replace the sample code with the contents of `supabase/functions/garmin/index.ts`, and click **Deploy**. The function checks the caller is signed in itself, so the **Verify JWT** setting can be on or off. (Or with the CLI: `supabase functions deploy garmin`.) No secrets to set.
+1. **Deploy the function.** Supabase dashboard → **Edge Functions → Deploy a new function → Via editor**. Name it `garmin`, replace the sample code with the contents of `supabase/functions/garmin/index.ts`, and click **Deploy**. Then open the function's **Details** and turn **Verify JWT with legacy secret** **off**: the function checks the caller is signed in itself, and with the setting on, the gateway can reject the app's requests without CORS headers, which shows up as "Failed to send a request". (Or with the CLI: `supabase functions deploy garmin --no-verify-jwt`.) No secrets to set.
 2. **Make a Garmin key.** On a computer, sign in at [Garmin Connect → Settings → Personal API](https://connect.garmin.com/app/settings/personalApiToken), create a key (choose 1 year), and copy it. Garmin shows it once.
 3. **Paste it in the app**: Settings → Garmin → Save key. The app pulls the last 14 days, then refreshes the week around whatever day you look at (today every 15 minutes at most).
 

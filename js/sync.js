@@ -211,7 +211,9 @@ export async function callFunction(name, body) {
       const j = await error.context?.json?.();
       if (j?.error) msg = j.error;
     } catch {}
-    if (/failed to send|fetch/i.test(msg) && navigator.onLine) msg = `The "${name}" function isn't reachable. Is it deployed? (${msg})`;
+    if (/failed to send|fetch/i.test(msg) && navigator.onLine) {
+      msg = `Couldn't reach the "${name}" function. In Supabase → Edge Functions, check it is deployed with exactly that name and that "Verify JWT" is turned off for it.`;
+    }
     throw new Error(msg);
   }
   return data;
