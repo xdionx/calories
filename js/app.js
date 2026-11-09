@@ -733,6 +733,7 @@ function renderGarmin() {
   if (!signedIn) msg = 'Sign in above to use Garmin.';
   else if (st.state === 'syncing') msg = 'Getting calories from Garmin…';
   else if (st.state === 'error') [msg, kind] = [st.message, 'error'];
+  else if (garmin.localOnly()) [msg, kind] = [`Your key is saved only on this device, so your other devices can't use it. Paste it again and tap Save key. (${garmin.localOnly()})`, 'error'];
   else if (has && garmin.lastPulled()) [msg, kind] = [`Last pulled from Garmin ${timeAgo(new Date(garmin.lastPulled()))}.`, 'ok'];
   else if (has) msg = 'Key saved. Tap "Pull last 14 days" to fetch.';
   authStatus('#garmin-status', msg, kind);
