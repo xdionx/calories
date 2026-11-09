@@ -54,7 +54,7 @@ One-time setup:
 2. **Make a Garmin key.** On a computer, sign in at [Garmin Connect → Settings → Personal API](https://connect.garmin.com/app/settings/personalApiToken), create a key (choose 1 year), and copy it. Garmin shows it once.
 3. **Paste it in the app**: Settings → Garmin → Save key. The app pulls the last 14 days once. After that, each time you open the app (or come back to it) it pulls the last 3 days, at most every 15 minutes. An older day you open is fetched once if it has no calories yet, and **Pull last 14 days** in Settings goes further back.
 
-The key is kept in that device's local storage only; it isn't synced to your account. The burned calories it pulls do sync. A day you edit by hand is left alone by Garmin until you clear it. When the key expires, Garmin emails you; make a new one and paste it again.
+The key is checked with Garmin and saved to your account (table `garmin_keys`, see [`supabase/schema.sql`](supabase/schema.sql); run that file's Garmin block once in the SQL Editor), so every device you sign in on pulls from Garmin without pasting it again. Only the function reads it; the app never shows it back. Remove it in Settings → Garmin. A day you edit by hand is left alone by Garmin until you clear it. When the key expires, Garmin emails you; make a new one and paste it again.
 
 ### Apple Health (iPhone Shortcut)
 

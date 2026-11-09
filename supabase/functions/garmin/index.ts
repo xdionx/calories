@@ -6,7 +6,15 @@
 //   2. reads Garmin's daily summaries (calories) and, when asked, weigh-ins
 //      for that range,
 //   3. returns them to the app as { summaries, weight }.
-// Nothing is stored. It only answers signed-in Fuel Log users (checked below
+// Requests:
+//   { action: 'saveKey', apiKey }   checks the key with Garmin, then saves it
+//                                   to the user's row in garmin_keys
+//   { action: 'deleteKey' }         removes it
+//   { startDate, endDate, include } pulls using the saved key (or an apiKey
+//                                   sent along, from older app versions)
+// The key is stored in public.garmin_keys (supabase/schema.sql), read and
+// written as the signed-in user, so row-level security keeps each user to
+// their own key. It only answers signed-in Fuel Log users (checked below
 // with Supabase Auth), so it isn't an open proxy.
 //
 // Turn OFF "Verify JWT with legacy secret" for this function (dashboard →
@@ -94,13 +102,48 @@ async function garminGet(apiKey: string, url: string, what: string) {
 
 // Asks Supabase Auth who the caller is. Works whether or not the dashboard's
 // "Verify JWT" setting is on, and with both old and new JWT signing keys.
+// Returns the caller's user id, or null when not signed in.
 async function signedIn(req: Request) {
   const auth = req.headers.get('Authorization') || '';
   const url = Deno.env.get('SUPABASE_URL');
-  const key = Deno.env.get('SUPABASE_ANON_KEY') || req.headers.get('apikey') || '';
-  if (!auth.startsWith('Bearer ') || !url) return false;
+  const key = req.headers.get('apikey') || Deno.env.get('SUPABASE_ANON_KEY') || '';
+  if (!auth.startsWith('Bearer ') || !url) return null;
   const res = await fetch(`${url}/auth/v1/user`, { headers: { Authorization: auth, apikey: key } });
-  return res.ok;
+  if (!res.ok) return null;
+  const user = await res.json();
+  return user?.id ? { id: user.id as string, auth, apikey: key, url } : null;
+}
+
+type Caller = NonNullable<Awaited<ReturnType<typeof signedIn>>>;
+
+// The garmin_keys table, as the signed-in user (row-level security applies).
+async function keysTable(c: Caller, method: string, query = '', body?: unknown) {
+  const res = await fetch(`${c.url}/rest/v1/garmin_keys${query}`, {
+    method,
+    headers: {
+      Authorization: c.auth,
+      apikey: c.apikey,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=minimal',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    const missing = res.status === 404 || /garmin_keys/.test(text);
+    throw Object.assign(
+      new Error(missing
+        ? 'The garmin_keys table is missing. Run the Garmin part of supabase/schema.sql in the Supabase SQL Editor.'
+        : `Saving the Garmin key failed (${res.status}).`),
+      { status: 500, detail: text.slice(0, 300) },
+    );
+  }
+  return method === 'GET' ? res.json() : null;
+}
+
+async function savedKey(c: Caller): Promise<string | null> {
+  const rows = await keysTable(c, 'GET', `?select=api_key&user_id=eq.${c.id}`);
+  return rows?.[0]?.api_key || null;
 }
 
 Deno.serve(async (req) => {
@@ -110,20 +153,38 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: { ...cors, ...(asked ? { 'Access-Control-Allow-Headers': asked } : {}), 'Access-Control-Max-Age': '86400' } });
   }
   if (req.method !== 'POST') return reply(405, { error: 'Use POST.' });
-  if (!(await signedIn(req))) return reply(401, { error: 'Sign in to Fuel Log first.' });
-  let body: { apiKey?: string; startDate?: string; endDate?: string; include?: string[] };
+  const caller = await signedIn(req);
+  if (!caller) return reply(401, { error: 'Sign in to Fuel Log first.' });
+  let body: { action?: string; apiKey?: string; startDate?: string; endDate?: string; include?: string[] };
   try {
     body = await req.json();
   } catch {
     return reply(400, { error: 'Send JSON: { apiKey, startDate, endDate }.' });
   }
-  const { apiKey, startDate, endDate, include = [] } = body;
-  if (!apiKey || typeof apiKey !== 'string') return reply(400, { error: 'Add your Garmin Personal API key in Settings.' });
+  const { action, startDate, endDate, include = [] } = body;
+  try {
+    if (action === 'saveKey') {
+      const k = typeof body.apiKey === 'string' ? body.apiKey.trim() : '';
+      if (!k) return reply(400, { error: 'Paste your Garmin Personal API key.' });
+      await accessToken(k, true); // throws a clear message if Garmin rejects it
+      await keysTable(caller, 'POST', '?on_conflict=user_id', { user_id: caller.id, api_key: k, updated_at: new Date().toISOString() });
+      return reply(200, { saved: true });
+    }
+    if (action === 'deleteKey') {
+      await keysTable(caller, 'DELETE', `?user_id=eq.${caller.id}`);
+      return reply(200, { deleted: true });
+    }
+  } catch (e) {
+    const err = e as Error & { status?: number; detail?: string };
+    console.error('garmin', action, err.message, err.detail || '');
+    return reply(err.status || 502, { error: err.message });
+  }
   if (!isDate(startDate) || !isDate(endDate) || startDate > endDate) return reply(400, { error: 'Dates must be YYYY-MM-DD, start before end.' });
   const days = (Date.parse(endDate) - Date.parse(startDate)) / 86_400_000 + 1;
   if (days > MAX_DAYS) return reply(400, { error: `Ask for ${MAX_DAYS} days or fewer at a time.` });
   try {
-    const key = apiKey.trim();
+    const key = (typeof body.apiKey === 'string' && body.apiKey.trim()) || (await savedKey(caller));
+    if (!key) return reply(400, { error: 'No Garmin key saved yet. Add it in Settings → Garmin.', noKey: true });
     const summaries = await garminGet(key, `${GARMIN}${SUMMARIES_PATH}?startDate=${startDate}&endDate=${endDate}`, 'daily summaries');
     const out: Record<string, unknown> = { summaries };
     if (Array.isArray(include) && include.includes('weight')) {

@@ -64,3 +64,23 @@ begin
   alter publication supabase_realtime add table public.sync_items;
 exception when duplicate_object then null;
 end $$;
+
+-- Garmin: each user's Garmin Personal API key, so every signed-in device can
+-- pull from Garmin without pasting the key again. Only the "garmin" Edge
+-- Function reads or writes it (acting as the signed-in user); the app never
+-- reads it back. Run this block once, like the rest of this file.
+create table if not exists public.garmin_keys (
+  user_id    uuid        primary key default auth.uid() references auth.users (id) on delete cascade,
+  api_key    text        not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.garmin_keys enable row level security;
+
+drop policy if exists "own key" on public.garmin_keys;
+create policy "own key" on public.garmin_keys
+  for all to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+grant select, insert, update, delete on public.garmin_keys to authenticated;

@@ -221,7 +221,7 @@
           <li>Copy the key and paste it here. Garmin only shows it once.</li>
         </ol>
         <label>Garmin Personal API key <input type="password" name="garminKey" autocomplete="off" spellcheck="false" placeholder="Paste key"></label>
-        <p class="muted small">The key stays on this device and isn't saved to your account. Burned calories it pulls do sync to your other devices.</p>
+        <p class="muted small">The key is saved to your account, so every device you sign in on can pull from Garmin. The app never shows it again; to change it, paste a new one.</p>
         <div class="btn-row">
           <button class="btn primary" type="submit">Save key</button>
           <button class="btn" type="button" id="garmin-pull">Pull last 14 days</button>
@@ -259,7 +259,8 @@
   <dialog id="food-dialog" class="sheet">
     <form method="dialog" id="food-form">
       <div class="sheet-head">
-        <div>
+        <div id="fd-thumb" class="fd-thumb"></div>
+        <div class="grow">
           <h2 id="fd-name"></h2>
           <div class="muted small" id="fd-meta"></div>
         </div>
