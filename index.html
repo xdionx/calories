@@ -115,10 +115,97 @@
       </div>
 
       <div class="tab" data-tab="mine" hidden>
+        <div class="card-head" id="my-recipes-head" hidden><h2>My recipes</h2></div>
+        <ul id="my-recipes" class="food-list"></ul>
         <div class="card-head"><h2>My foods</h2><button class="btn small" id="new-food">+ Create food</button></div>
         <ul id="my-foods" class="food-list"></ul>
         <div class="card-head"><h2>Recently added</h2></div>
         <ul id="recent-foods" class="food-list"></ul>
+      </div>
+    </section>
+
+    <!-- RECIPE BOOK -->
+    <section class="view" id="view-recipes" data-view="recipes" hidden>
+      <div id="recipe-list-wrap" class="book">
+        <button type="button" class="book-cover" id="book-cover" aria-label="Open the recipe book">
+          <span class="cover-frame">
+            <span class="cover-orn" aria-hidden="true">❦</span>
+            <span class="cover-title">Recipe Book</span>
+            <span class="cover-rule" aria-hidden="true"></span>
+            <span class="cover-sub" id="cover-count"></span>
+          </span>
+          <span class="cover-hint">Tap to open</span>
+        </button>
+
+        <div class="page contents" id="book-contents" hidden>
+          <div class="page-top"><button type="button" class="page-link" id="book-close">Close book</button></div>
+          <h2 class="page-title">Contents</h2>
+          <ol id="recipe-list" class="toc"></ol>
+          <p class="page-empty" id="recipe-empty">No recipes yet. Paste one in (ingredients, directions, and the nutrition line if it has one) and it gets its own page here, with calories per serving worked out for you.</p>
+          <button type="button" class="btn primary book-add" id="rx-new">+ Add a recipe</button>
+          <div class="page-num">i</div>
+        </div>
+      </div>
+
+      <div id="recipe-detail" class="book" hidden>
+        <article class="page recipe-page" id="rd-page">
+          <span class="ribbon" aria-hidden="true"></span>
+          <div class="page-top"><button type="button" class="page-link" id="rd-back">‹ Contents</button></div>
+          <h2 class="page-title" id="rd-name"></h2>
+          <div class="rp-meta" id="rd-meta"></div>
+          <div class="rp-card" id="rd-summary"></div>
+          <div class="btn-row">
+            <button class="btn primary grow" id="rd-log">Log a serving</button>
+            <button class="btn" id="rd-edit">Edit</button>
+          </div>
+          <h3 class="rp-head">Ingredients</h3>
+          <ul id="rd-ingredients" class="rp-ingredients"></ul>
+          <div id="rd-directions-card">
+            <h3 class="rp-head">Directions</h3>
+            <ol id="rd-directions" class="rp-directions"></ol>
+          </div>
+          <div class="page-foot">
+            <button type="button" class="page-link" id="rd-prev" aria-label="Previous recipe">‹</button>
+            <span class="page-num" id="rd-num"></span>
+            <button type="button" class="page-link" id="rd-next" aria-label="Next recipe">›</button>
+          </div>
+        </article>
+      </div>
+
+      <div id="recipe-editor" class="book" hidden>
+        <div class="page editor-page">
+          <div class="page-top"><button type="button" class="page-link" id="rx-back">‹ Back</button></div>
+          <h2 class="page-title" id="rx-title">New recipe</h2>
+          <form class="form" id="rx-form">
+            <label>Paste the recipe <textarea name="text" id="rx-text" rows="8" placeholder="Paste the whole recipe: title, servings, ingredients, directions, and the nutrition line if it has one.&#10;&#10;Ingredients&#10;2 cups cooked rice&#10;1 lb chicken breast&#10;1 tbsp olive oil&#10;...&#10;&#10;Directions&#10;1. Heat the oil..."></textarea></label>
+            <button class="btn primary" type="button" id="rx-calc">Work out calories</button>
+            <div class="status" id="rx-status"></div>
+            <div class="grid2">
+              <label>Name <input name="name" placeholder="e.g. Chicken stir fry" autocomplete="off"></label>
+              <label>Servings <input name="servings" type="number" min="1" step="1" inputmode="numeric" value="4"></label>
+            </div>
+          </form>
+
+          <div id="rx-ing-card" class="form">
+            <div class="rp-card">
+              <div id="rx-source"></div>
+              <div id="rx-summary" class="form"></div>
+              <p class="muted small" id="rx-total-note"></p>
+            </div>
+            <h3 class="rp-head">Ingredients <span class="muted small">tap a match to change it</span></h3>
+            <div id="rx-ingredients" class="rx-list"></div>
+            <form id="rx-add-form" class="search-row">
+              <input id="rx-add-input" placeholder="Add an ingredient, e.g. 2 tbsp butter" autocomplete="off" enterkeyhint="done">
+              <button class="btn" type="submit">Add</button>
+            </form>
+          </div>
+
+          <label class="rx-dir-label">Directions <textarea name="directions" form="rx-form" rows="6" placeholder="Optional"></textarea></label>
+          <div class="btn-row">
+            <button class="btn danger" type="button" id="rx-delete" hidden>Tear out page</button>
+            <button class="btn primary grow" type="button" id="rx-save">Save to book</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -278,6 +365,7 @@
   <nav class="tabbar" aria-label="Main">
     <button data-nav="today" class="active"><span class="ti">◐</span>Today</button>
     <button data-nav="add"><span class="ti">＋</span>Add food</button>
+    <button data-nav="recipes"><span class="ti">▤</span>Recipes</button>
     <button data-nav="trends"><span class="ti">▥</span>Trends</button>
     <button data-nav="settings"><span class="ti">⚙</span>Settings</button>
   </nav>
