@@ -5,7 +5,7 @@ A phone-friendly web app (installable PWA) for tracking calories, macros, vitami
 - **Daily log** by meal (breakfast, lunch, dinner, snacks) with a calorie ring, protein/carb/fat bars, and a vitamins & minerals panel showing % Daily Value.
 - **Barcode scanning** with the phone camera. Uses the browser's built-in `BarcodeDetector` when available (Android Chrome) and the bundled ZXing reader everywhere else (iPhone Safari, Firefox). You can also type the barcode number.
 - **Food database search** across USDA FoodData Central (whole foods, best vitamin/mineral data) and Open Food Facts (packaged foods).
-- **Restaurants**: pick a restaurant, then browse or filter its menu. Ships with sample menus for McDonald's, Wendy's, Taco Bell and Chick-fil-A; real data sources plug in through a small provider interface.
+- **Restaurants**: pick a restaurant, then browse or filter its menu. Full menus from official nutrition guides for Mo' Bettahs, Little Caesars and Domino's, plus Jurassic Tacos (estimated: they publish no nutrition). McDonald's, Wendy's, Taco Bell and Chick-fil-A are still short sample menus. More sources plug in through a small provider interface.
 - **Calories burned and daily deficit/surplus**: pulls active and resting calories from Garmin Connect (or takes them from Apple Health via a Shortcut, or typed in) and shows eaten − burned for each day, plus a 7-day deficit/surplus chart on Trends.
 - **Custom foods**, recent foods, 7-day trends, editable goals, and JSON backup/restore.
 - **Accounts and sync** (optional): sign in with email and password and your log, goals, custom foods, recent foods and settings sync across devices. Without an account, data stays in the browser's local storage on the device.
@@ -98,6 +98,8 @@ All nutrient values are normalised to the keys in `js/nutrients.js` (calories, p
 Restaurant data lives in `js/providers/restaurants/`.
 
 - `provider.js` describes the interface and has two helpers.
+- `mobettahs.js`, `littlecaesars.js`, `dominos.js` are full menus copied from each chain's official nutrition page or guide (source URL and date at the top of each file).
+- `jurassictacos.js` is the Jurassic Tacos menu with ESTIMATED nutrition, built from typical ingredient portions listed in the file, because the chain publishes none.
 - `sample-menus.js` holds the placeholder menus (approximate values).
 - `index.js` is the registry the app reads.
 
