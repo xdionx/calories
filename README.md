@@ -70,6 +70,20 @@ Build it in the Shortcuts app: **Find Health Samples** (Type: Active Energy, Sta
 
 Tap **Add burned** / **Edit** on the Today card and type active and resting calories. If you leave resting empty (or a source only reports active), the app uses **Resting burn** from Settings → Daily goals.
 
+## Profile, weight and recommended goals
+
+Settings → **Your profile** takes your birthday, sex, height, units (lb/ft-in or kg/cm) and goal (lose, maintain or gain, with a weekly rate). Log your weight on the Today screen; if Garmin has a weigh-in for a day (from an Index scale or one entered in Garmin Connect), it's pulled in and replaces a typed one for that day. Trends shows the last 30 days of weight.
+
+The recommendation (`js/targets.js`):
+
+- **Daily burn**: your average calories burned (resting + active) over the last 14 full days when at least 3 days have data, which with Garmin reflects how active you really are. Without that, Mifflin-St Jeor BMR × an activity factor.
+- **Calories**: burn minus the deficit for your weekly rate (7,700 kcal ≈ 1 kg), or plus a surplus to gain. Never below your resting burn, never more than a 25% cut, never under 1,200 (women) / 1,500 (men).
+- **Protein** 1.6 g/kg (1.8 if very active, 2.0 while losing), **fat** ~28% of calories (at least 0.6 g/kg), **carbs** the rest.
+
+Tap **Use these goals**, or tick **Keep my daily goals updated** so they follow your weight and Garmin activity automatically. Editing goals by hand turns that off. General guidelines, not medical advice.
+
+Garmin weigh-ins need the latest `supabase/functions/garmin/index.ts` deployed (paste it into the existing `garmin` function and deploy). An older deployment still returns calories, just no weight.
+
 ## Data sources
 
 | Source | Used for | Key |

@@ -83,8 +83,32 @@ export function parseDay(day) {
 }
 
 function daysFrom(response) {
+  // The function returns { summaries, weight }; older deployments return the
+  // summaries directly.
+  if (response && !Array.isArray(response) && 'summaries' in response) response = response.summaries;
   const list = Array.isArray(response) ? response : response?.data || response?.dailySummaries || response?.summaries || [];
   return (Array.isArray(list) ? list : [list]).map(parseDay).filter(Boolean);
+}
+
+// Garmin's weight response isn't documented either. Look for objects that
+// carry a date and a weight (Garmin usually reports grams), e.g.
+// { summaryDate, latestWeight: { weight: 81500 } } or { calendarDate, weight }.
+export function parseWeights(response) {
+  const found = new Map();
+  const toKg = (n) => (n > 1000 ? n / 1000 : n);
+  const visit = (o) => {
+    if (Array.isArray(o)) return o.forEach(visit);
+    if (!o || typeof o !== 'object') return;
+    const date = [o.calendarDate, o.summaryDate, o.date].find((d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d));
+    const raw = [o.weight, o.latestWeight?.weight, o.weightInGrams].find((n) => typeof n === 'number' && n > 0);
+    if (date && raw != null) {
+      const kg = toKg(raw);
+      if (kg >= 20 && kg <= 400 && !found.has(date.slice(0, 10))) found.set(date.slice(0, 10), kg);
+    }
+    for (const v of Object.values(o)) if (v && typeof v === 'object') visit(v);
+  };
+  visit(response);
+  return [...found].map(([date, kg]) => ({ date, kg }));
 }
 
 /* ---------------- Pulling ---------------- */
@@ -97,7 +121,7 @@ export async function pull(startDate, endDate) {
   emit({ state: 'syncing', message: '' });
   busy = (async () => {
     try {
-      const response = await sync.callFunction('garmin', { apiKey: saved.apiKey, startDate, endDate });
+      const response = await sync.callFunction('garmin', { apiKey: saved.apiKey, startDate, endDate, include: ['weight'] });
       const days = daysFrom(response);
       if (!days.length && response && JSON.stringify(response).length > 20) {
         console.warn('Garmin response had no calories Fuel Log recognised', response);
@@ -108,6 +132,12 @@ export async function pull(startDate, endDate) {
         if (store.burnFor(d.date)?.source === 'manual') continue;
         if (store.setBurn(d.date, { active: d.active, resting: d.resting, source: 'garmin' })) changed++;
       }
+      // Weigh-ins: Garmin's number wins over one typed in for the same day.
+      let weights = 0;
+      if (response?.weight) {
+        for (const w of parseWeights(response.weight)) if (store.setWeight(w.date, { kg: w.kg, source: 'garmin' })) weights++;
+      }
+      if (response?.weightError) console.warn('Garmin weight:', response.weightError);
       const now = Date.now();
       for (let k = startDate; k <= endDate; k = store.shiftDate(k, 1)) saved.pulled[k] = now;
       // Forget pull times older than ~2 months.
@@ -116,7 +146,7 @@ export async function pull(startDate, endDate) {
       saved.lastOk = now;
       persist();
       emit({ state: 'ok', message: '' });
-      return { days: days.length, changed };
+      return { days: days.length, changed, weights };
     } catch (e) {
       emit({ state: 'error', message: e.message || String(e) });
       throw e;
