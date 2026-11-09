@@ -5,10 +5,11 @@ A phone-friendly web app (installable PWA) for tracking calories, macros, vitami
 - **Daily log** by meal (breakfast, lunch, dinner, snacks) with a calorie ring, protein/carb/fat bars, and a vitamins & minerals panel showing % Daily Value.
 - **Barcode scanning** with the phone camera. Uses the browser's built-in `BarcodeDetector` when available (Android Chrome) and the bundled ZXing reader everywhere else (iPhone Safari, Firefox). You can also type the barcode number.
 - **Food database search** across USDA FoodData Central (whole foods, best vitamin/mineral data) and Open Food Facts (packaged foods).
-- **Restaurants**: pick a restaurant, then browse or filter its menu. Ships with sample menus for McDonald's, Wendy's, Taco Bell and Chick-fil-A; real data sources plug in through a small provider interface.
+- **Restaurants**: pick a restaurant, then browse or filter its menu. Full menus from official nutrition guides for Mo' Bettahs, Little Caesars and Domino's, plus Jurassic Tacos (estimated: they publish no nutrition). McDonald's, Wendy's, Taco Bell and Chick-fil-A are still short sample menus. More sources plug in through a small provider interface.
 - **Calories burned and daily deficit/surplus**: pulls active and resting calories from Garmin Connect (or takes them from Apple Health via a Shortcut, or typed in) and shows eaten − burned for each day, plus a 7-day deficit/surplus chart on Trends.
+- **Trends** for 7, 30 or 90 days: highlights (averages, total deficit, days on target, logging streak, weight change), eaten vs burned, daily deficit/surplus, weight with a 7-day average and the weight your logged deficit predicts, macro split vs goal, calories by meal, top foods, weekday pattern and nutrient averages. Hover or tap for details; tap again to open that day.
+- **Custom foods**, recent foods, editable goals, and JSON backup/restore.
 - **Recipes**: paste a whole recipe (title, servings, ingredients, directions) and the app reads the ingredient list, looks each one up in USDA FoodData Central, converts cups/tbsp/cloves/"1 large onion" into grams using USDA's own portion weights, and shows calories, macros, vitamins and minerals per serving. You can change any match or amount before saving. Saved recipes live under the Recipes tab (and Add food → Recent) for logging a serving in one tap, and sync with your account. Matches you pick are remembered on that device for the next recipe.
-- **Custom foods**, recent foods, 7-day trends, editable goals, and JSON backup/restore.
 - **Accounts and sync** (optional): sign in with email and password and your log, goals, custom foods, recent foods and settings sync across devices. Without an account, data stays in the browser's local storage on the device.
 
 ## Run it
@@ -55,7 +56,7 @@ One-time setup:
 2. **Make a Garmin key.** On a computer, sign in at [Garmin Connect → Settings → Personal API](https://connect.garmin.com/app/settings/personalApiToken), create a key (choose 1 year), and copy it. Garmin shows it once.
 3. **Paste it in the app**: Settings → Garmin → Save key. The app pulls the last 14 days once. After that, each time you open the app (or come back to it) it pulls the last 3 days, at most every 15 minutes. An older day you open is fetched once if it has no calories yet, and **Pull last 14 days** in Settings goes further back.
 
-The key is kept in that device's local storage only; it isn't synced to your account. The burned calories it pulls do sync. A day you edit by hand is left alone by Garmin until you clear it. When the key expires, Garmin emails you; make a new one and paste it again.
+The key is checked with Garmin and saved to your account (table `garmin_keys`, see [`supabase/schema.sql`](supabase/schema.sql); run that file's Garmin block once in the SQL Editor), so every device you sign in on pulls from Garmin without pasting it again. Only the function reads it; the app never shows it back. Remove it in Settings → Garmin. A day you edit by hand is left alone by Garmin until you clear it. When the key expires, Garmin emails you; make a new one and paste it again.
 
 ### Apple Health (iPhone Shortcut)
 
@@ -99,6 +100,8 @@ All nutrient values are normalised to the keys in `js/nutrients.js` (calories, p
 Restaurant data lives in `js/providers/restaurants/`.
 
 - `provider.js` describes the interface and has two helpers.
+- `mobettahs.js`, `littlecaesars.js`, `dominos.js` are full menus copied from each chain's official nutrition page or guide (source URL and date at the top of each file).
+- `jurassictacos.js` is the Jurassic Tacos menu with ESTIMATED nutrition, built from typical ingredient portions listed in the file, because the chain publishes none.
 - `sample-menus.js` holds the placeholder menus (approximate values).
 - `index.js` is the registry the app reads.
 

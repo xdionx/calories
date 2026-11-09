@@ -8,6 +8,7 @@ import * as sync from './sync.js';
 import * as garmin from './garmin.js';
 import * as recipeUI from './recipe-ui.js';
 import * as targets from './targets.js';
+import * as trends from './trends.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -26,6 +27,7 @@ const ui = {
   addMeal: guessMeal(),
   addTab: 'search',
   microGroup: 'vitamin',
+  trendDays: 7,
   restaurant: null,
   stopScan: null,
   searchAbort: null,
@@ -227,9 +229,21 @@ function unitText(entry) {
   return qty === 1 ? unit.label : `${qty} × ${unit.label}`;
 }
 
+// Product photo (Open Food Facts gives one for most packaged foods), or a
+// lettered placeholder for foods without one.
+const safeImage = (url) => (/^https:\/\/[^\s"'<>]+$/.test(url || '') ? url : '');
+function thumb(food, cls = '') {
+  const url = safeImage(food.image);
+  const letter = esc((food.name || '?').trim().charAt(0).toUpperCase());
+  return url
+    ? `<span class="thumb ${cls}" data-letter="${letter}"><img src="${esc(url)}" alt="" loading="lazy" decoding="async"></span>`
+    : `<span class="thumb ${cls} none" data-letter="${letter}"></span>`;
+}
+
 function entryRow(e) {
   return `
     <div class="entry" data-entry="${e.id}">
+      ${thumb(e.food, 'sm')}
       <div class="info">
         <div class="name">${esc(e.food.name)}</div>
         <div class="sub">${esc(e.food.brand ? `${e.food.brand} · ` : '')}${esc(unitText(e))}</div>
@@ -267,6 +281,7 @@ function foodRow(food) {
   const sub = [food.brand && food.brand !== food.source ? food.brand : '', food.category || ''].filter(Boolean).join(' · ');
   return `
     <li data-food="${esc(food.id)}">
+      ${thumb(food)}
       <div class="info">
         <div class="name">${esc(food.name)}</div>
         <div class="sub"><span class="tag">${esc(food.source)}</span>${esc(sub)}</div>
@@ -285,6 +300,7 @@ function openFood(food, { entry = null, meal = ui.addMeal } = {}) {
   dlg.food = food;
   dlg.editing = entry;
   $('#fd-name').textContent = food.name;
+  $('#fd-thumb').innerHTML = thumb(food, 'lg');
   $('#fd-meta').textContent = [food.brand, food.source, food.barcode ? `#${food.barcode}` : ''].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ');
   $('#fd-unit').innerHTML = food.units.map((u, i) => `<option value="${i}">${esc(u.label)}</option>`).join('');
   $('#fd-meal').innerHTML = MEALS.map((m) => `<option ${m === (entry?.meal || meal) ? 'selected' : ''}>${m}</option>`).join('');
@@ -511,105 +527,8 @@ function saveCustomFood(form) {
 
 /* ---------------- Trends ---------------- */
 function renderTrends() {
-  const { goals } = store.getState();
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const key = store.shiftDate(ui.date, -i);
-    days.push({ key, totals: store.totalsFor(key) });
-  }
-  const max = Math.max(goals.kcal * 1.15, ...days.map((d) => d.totals.kcal || 0), 1);
-  const logged = days.filter((d) => d.totals.kcal > 0);
-  const avg = (k) => (logged.length ? logged.reduce((s, d) => s + (d.totals[k] || 0), 0) / logged.length : 0);
-
-  $('#trend-chart').innerHTML = `
-    <div class="goal-line" style="bottom:0"><span>goal ${round(goals.kcal)}</span></div>
-    ${days.map((d) => {
-      const k = d.totals.kcal || 0;
-      const [y, m, dd] = d.key.split('-').map(Number);
-      const label = new Date(y, m - 1, dd).toLocaleDateString(undefined, { weekday: 'narrow' });
-      return `<div class="tcol" data-day="${d.key}" title="${d.key}">
-        <span class="tval">${k ? round(k) : ''}</span>
-        <div class="tbar ${k > goals.kcal ? 'over' : ''}" style="height:${(k / max) * 75}%"></div>
-        <span class="tday">${label}</span>
-      </div>`;
-    }).join('')}`;
-  // Position the goal line against the bar area precisely after layout.
-  requestAnimationFrame(() => {
-    const chart = $('#trend-chart');
-    const col = chart.querySelector('.tcol');
-    const bar = col?.querySelector('.tbar');
-    const line = chart.querySelector('.goal-line');
-    if (!col || !bar || !line) return;
-    const colRect = col.getBoundingClientRect();
-    const barBottom = bar.getBoundingClientRect().bottom;
-    const chartRect = chart.getBoundingClientRect();
-    const usable = colRect.height * 0.75;
-    line.style.bottom = `${chartRect.bottom - barBottom + (goals.kcal / max) * usable}px`;
-  });
-
-  renderTrendNet(days.map((d) => d.key));
-  renderTrendWeight();
-
-  $('#trend-avg').textContent = logged.length ? `avg ${round(avg('kcal')).toLocaleString()} kcal on ${logged.length} logged day${logged.length > 1 ? 's' : ''}` : 'No days logged yet';
-  $('#trend-macros').innerHTML = MACROS.map((m) => macroBar(m, avg(m.key), goals[m.key])).join('') +
-    ['fiber', 'sodium'].map((k) => {
-      const n = NUTRIENT_MAP[k];
-      const v = avg(k);
-      const pct = (v / n.dv) * 100;
-      return `<div class="macro-row"><div class="lbl"><span>${n.label}</span><b>${formatAmount(v, n.unit)} / ${formatAmount(n.dv, n.unit)}</b></div>
-        <div class="bar"><i style="width:${Math.min(pct, 100)}%" class="${k === 'sodium' && pct > 100 ? 'over' : ''}"></i></div></div>`;
-    }).join('');
-}
-
-function renderTrendWeight() {
-  const end = ui.date;
-  const start = store.shiftDate(end, -29);
-  const list = store.weightsBetween(start, end);
-  const box = $('#trend-weight');
-  if (list.length < 2) {
-    $('#trend-weight-sum').textContent = list.length ? fmtWeight(list[0].kg) : '';
-    box.innerHTML = '<div class="empty">Log your weight on a few days (or let Garmin) to see the trend.</div>';
-    return;
-  }
-  const vals = list.map((w) => targets.kgToDisplay(w.kg));
-  let lo = Math.min(...vals);
-  let hi = Math.max(...vals);
-  const pad = Math.max((hi - lo) * 0.15, 0.5);
-  lo -= pad;
-  hi += pad;
-  const dayIndex = (key) => Math.round((Date.parse(key) - Date.parse(start)) / 86_400_000);
-  const pts = list.map((w, i) => [(dayIndex(w.date) / 29) * 100, 100 - ((vals[i] - lo) / (hi - lo)) * 100]);
-  const change = vals[vals.length - 1] - vals[0];
-  const unit = targets.weightUnit();
-  $('#trend-weight-sum').textContent = `${change > 0 ? '+' : change < 0 ? '−' : ''}${Math.abs(Math.round(change * 10) / 10)} ${unit} since ${dayLabel(list[0].date, { month: 'short', day: 'numeric' })}`;
-  box.innerHTML = `
-    <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Weight trend">
-      <polyline class="wline" points="${pts.map((p) => p.join(',')).join(' ')}"/>
-    </svg>
-    <div class="wlabels"><span>${esc(dayLabel(start, { month: 'short', day: 'numeric' }))}</span>
-      <span>${Math.round(lo * 10) / 10}–${Math.round(hi * 10) / 10} ${unit}</span>
-      <span>${esc(dayLabel(end, { month: 'short', day: 'numeric' }))}</span></div>`;
-}
-
-function renderTrendNet(keys) {
-  const rows = keys.map((key) => ({ key, bal: store.balanceFor(key) })).filter((r) => r.bal && r.bal.eaten > 0);
-  const biggest = Math.max(500, ...rows.map((r) => Math.abs(r.bal.net)));
-  const sum = rows.reduce((s, r) => s + r.bal.net, 0);
-  $('#trend-net-sum').textContent = rows.length
-    ? `${fmt(Math.abs(sum))} kcal ${sum > 0 ? 'surplus' : 'deficit'} over ${rows.length} day${rows.length > 1 ? 's' : ''} (≈ ${(Math.abs(sum) / 3500).toFixed(1)} lb)`
-    : '';
-  $('#trend-net').innerHTML = rows.length
-    ? rows.map(({ key, bal }) => {
-      const [y, m, d] = key.split('-').map(Number);
-      const day = new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
-      const cls = bal.net > 0 ? 'surplus' : 'deficit';
-      const w = (Math.abs(bal.net) / biggest) * 50;
-      const pos = bal.net > 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`;
-      return `<div class="tn-row" data-day="${key}"><span class="day">${esc(day)}</span>
-        <div class="tn-track"><i class="${cls}" style="${pos}"></i></div>
-        <span class="val ${cls}">${bal.net > 0 ? '+' : '−'}${fmt(Math.abs(bal.net))}</span></div>`;
-    }).join('')
-    : '<div class="empty">Days with both food logged and calories burned show up here.</div>';
+  $$('#trend-range button').forEach((b) => b.classList.toggle('active', +b.dataset.days === ui.trendDays));
+  trends.render($('#view-trends'), { end: ui.date, days: ui.trendDays });
 }
 
 /* ---------------- Settings ---------------- */
@@ -717,7 +636,7 @@ function renderGarmin() {
   const form = $('#garmin-form');
   const has = garmin.hasKey();
   const signedIn = Boolean(sync.getAccount().user);
-  form.elements.garminKey.placeholder = has ? 'Key saved on this device' : 'Paste key';
+  form.elements.garminKey.placeholder = has ? 'Key saved to your account' : 'Paste key';
   $('#garmin-pull').disabled = !has || !signedIn || garmin.status.state === 'syncing';
   $('#garmin-forget').hidden = !has;
   const st = garmin.status;
@@ -726,6 +645,7 @@ function renderGarmin() {
   if (!signedIn) msg = 'Sign in above to use Garmin.';
   else if (st.state === 'syncing') msg = 'Getting calories from Garmin…';
   else if (st.state === 'error') [msg, kind] = [st.message, 'error'];
+  else if (garmin.localOnly()) [msg, kind] = [`Your key is saved only on this device, so your other devices can't use it. Paste it again and tap Save key. (${garmin.localOnly()})`, 'error'];
   else if (has && garmin.lastPulled()) [msg, kind] = [`Last pulled from Garmin ${timeAgo(new Date(garmin.lastPulled()))}.`, 'ok'];
   else if (has) msg = 'Key saved. Tap "Pull last 14 days" to fetch.';
   authStatus('#garmin-status', msg, kind);
@@ -1018,21 +938,32 @@ function bind() {
     toast('Cleared');
   };
 
-  $('#garmin-form').onsubmit = (e) => {
+  $('#garmin-form').onsubmit = async (e) => {
     e.preventDefault();
     const input = e.target.elements.garminKey;
     const key = input.value.trim();
     if (!key) return toast('Paste your Garmin Personal API key first.');
-    garmin.setKey(key);
-    input.value = '';
-    toast('Garmin key saved on this device');
-    renderGarmin();
-    if (sync.getAccount().user) pullGarmin();
+    if (!sync.getAccount().user) return toast('Sign in first (Settings → Account).');
+    authStatus('#garmin-status', 'Checking the key with Garmin…');
+    try {
+      await garmin.saveKey(key);
+      input.value = '';
+      toast('Garmin key saved to your account');
+      renderGarmin();
+      pullGarmin();
+    } catch (err) {
+      authStatus('#garmin-status', err.message, 'error');
+    }
   };
   $('#garmin-pull').onclick = () => pullGarmin();
-  $('#garmin-forget').onclick = () => {
-    if (!confirm('Remove the Garmin key from this device? Calories already pulled stay in your log.')) return;
-    garmin.setKey('');
+  $('#garmin-forget').onclick = async () => {
+    if (!confirm('Remove the Garmin key from your account? Every device stops pulling from Garmin. Calories already pulled stay in your log.')) return;
+    try {
+      await garmin.removeKey();
+      toast('Garmin key removed');
+    } catch (err) {
+      toast(err.message);
+    }
     renderGarmin();
   };
 
@@ -1084,20 +1015,40 @@ function bind() {
   };
 
   // Trends: tap a day to open it
-  $('#trend-net').addEventListener('click', (e) => {
-    const row = e.target.closest('[data-day]');
-    if (row) {
-      setDate(row.dataset.day);
-      showView('today');
-    }
+  // Trends: pick a range; tap a day in a chart to open it
+  $('#trend-range').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-days]');
+    if (!b) return;
+    ui.trendDays = +b.dataset.days;
+    try { localStorage.setItem('ct.trendDays', String(ui.trendDays)); } catch {}
+    renderTrends();
   });
-  $('#trend-chart').addEventListener('click', (e) => {
-    const col = e.target.closest('[data-day]');
-    if (col) {
-      setDate(col.dataset.day);
-      showView('today');
+  try {
+    const savedDays = +localStorage.getItem('ct.trendDays');
+    if ([7, 30, 90].includes(savedDays)) ui.trendDays = savedDays;
+  } catch {}
+  trends.bindTooltips($('#view-trends'));
+  let lastPointer = 'mouse';
+  $('#view-trends').addEventListener('pointerdown', (e) => (lastPointer = e.pointerType));
+  $('#view-trends').addEventListener('click', (e) => {
+    const t = e.target.closest('[data-day]');
+    // On touch screens the first tap shows the tooltip; a second tap opens the day.
+    if (!t || (lastPointer !== 'mouse' && !t.classList.contains('was-hot'))) {
+      $$('#view-trends .was-hot').forEach((x) => x.classList.remove('was-hot'));
+      t?.classList.add('was-hot');
+      return;
     }
+    setDate(t.dataset.day);
+    showView('today');
   });
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => ui.view === 'trends' && renderTrends(), 200);
+  });
+
+  // iPhone Safari ignores user-scalable=no; block pinch zoom directly.
+  ['gesturestart', 'gesturechange'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault(), { passive: false }));
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) stopScanning();
@@ -1114,6 +1065,8 @@ store.subscribe((_state, source) => {
   // the user is typing in it.
   const typing = document.activeElement?.matches('#goals-form input, #api-form input, #garmin-form input, #profile-form input, #profile-form select');
   if (ui.view === 'settings' && source === 'sync' && !typing) renderSettings();
+  // Another device linked Garmin: start pulling here too.
+  if (source === 'sync') garmin.refreshAround(ui.date);
 });
 
 let lastUserId = null;
@@ -1156,6 +1109,14 @@ function importBurnFromUrl() {
 }
 
 importBurnFromUrl();
+// A photo that fails to load falls back to the lettered placeholder.
+document.addEventListener('error', (e) => {
+  if (e.target.tagName === 'IMG' && e.target.parentElement?.classList.contains('thumb')) {
+    e.target.parentElement.classList.add('none');
+    e.target.remove();
+  }
+}, true);
+
 bind();
 bindAccount();
 recipeUI.init({ openFood, toast });

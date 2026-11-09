@@ -1,9 +1,11 @@
 // Garmin: pulls calories burned per day from Garmin Connect's Personal API,
 // through the "garmin" Supabase Edge Function (supabase/functions/garmin).
 //
-// The Personal API key is like a password for Garmin data, so it stays on
-// this device only (localStorage, not synced to the account). Each device
-// that should pull from Garmin needs the key entered once.
+// The Personal API key is saved once to the user's account (the function
+// stores it in the garmin_keys table) and never comes back to the browser.
+// settings.garminLinked (synced) tells every signed-in device a key exists.
+// Older versions kept the key in this device's storage; it's moved to the
+// account on the next pull.
 
 import * as store from './store.js';
 import * as sync from './sync.js';
@@ -36,13 +38,43 @@ function emit(changes) {
 }
 
 export const onChange = (fn) => (listeners.add(fn), () => listeners.delete(fn));
-export const hasKey = () => Boolean(saved.apiKey);
+export const hasKey = () => Boolean(store.getState().settings.garminLinked || saved.apiKey);
 export const lastPulled = () => saved.lastOk || null;
+// Set when a key saved by an older version is still only on this device.
+export const localOnly = () => (saved.apiKey ? saved.migrateError || 'not moved yet' : null);
 
-export function setKey(apiKey) {
-  saved = { apiKey: apiKey.trim(), pulled: {} };
+// Checks the key with Garmin and saves it to the account.
+export async function saveKey(apiKey) {
+  await sync.callFunction('garmin', { action: 'saveKey', apiKey: apiKey.trim() });
+  saved = { apiKey: '', pulled: {} };
   persist();
+  store.setSettings({ garminLinked: true });
   emit({ state: 'idle', message: '' });
+}
+
+export async function removeKey() {
+  if (store.getState().settings.garminLinked) await sync.callFunction('garmin', { action: 'deleteKey' });
+  saved = { apiKey: '', pulled: {} };
+  persist();
+  store.setSettings({ garminLinked: false });
+  emit({ state: 'idle', message: '' });
+}
+
+// A key left on this device by an older version: move it to the account.
+// If that isn't possible yet (table not created), keep using it from here.
+async function migrateLocalKey() {
+  if (!saved.apiKey) return;
+  try {
+    await sync.callFunction('garmin', { action: 'saveKey', apiKey: saved.apiKey });
+    saved.apiKey = '';
+    persist();
+    store.setSettings({ garminLinked: true });
+    delete saved.migrateError;
+  } catch (e) {
+    console.warn('Garmin key stays on this device for now:', e.message);
+    saved.migrateError = e.message;
+    persist();
+  }
 }
 
 // Marks a day as never pulled, so the next refresh fetches it again.
@@ -116,12 +148,22 @@ export function parseWeights(response) {
 // Pulls startDate..endDate (inclusive) and saves each day's burn. Days the
 // user typed in by hand are left alone.
 export async function pull(startDate, endDate) {
-  if (!saved.apiKey) throw new Error('Add your Garmin Personal API key first.');
+  if (!hasKey()) throw new Error('Add your Garmin Personal API key first.');
   if (busy) return busy;
   emit({ state: 'syncing', message: '' });
   busy = (async () => {
     try {
-      const response = await sync.callFunction('garmin', { apiKey: saved.apiKey, startDate, endDate, include: ['weight'] });
+      await migrateLocalKey();
+      const body = { startDate, endDate, include: ['weight'] };
+      if (saved.apiKey) body.apiKey = saved.apiKey;
+      let response;
+      try {
+        response = await sync.callFunction('garmin', body);
+      } catch (e) {
+        // The account has no key (removed on another device): stop asking.
+        if (/no garmin key saved/i.test(e.message)) store.setSettings({ garminLinked: false });
+        throw e;
+      }
       const days = daysFrom(response);
       if (!days.length && response && JSON.stringify(response).length > 20) {
         console.warn('Garmin response had no calories Fuel Log recognised', response);
@@ -164,7 +206,7 @@ export async function pull(startDate, endDate) {
 export const RECENT_DAYS = 3;
 
 export function refreshAround(date = store.todayKey()) {
-  if (!saved.apiKey || !sync.getAccount().user || busy) return;
+  if (!hasKey() || !sync.getAccount().user || busy) return;
   const today = store.todayKey();
   if (date > today) return;
   const recentStart = store.shiftDate(today, -(RECENT_DAYS - 1));
