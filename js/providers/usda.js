@@ -15,6 +15,7 @@ const BY_NUMBER = {
   '404': 'thiamin', '405': 'riboflavin', '406': 'niacin', '415': 'vitB6', '435': 'folate',
   '418': 'vitB12', '301': 'calcium', '303': 'iron', '304': 'magnesium', '305': 'phosphorus',
   '306': 'potassium', '309': 'zinc', '312': 'copper', '317': 'selenium',
+  '262': 'caffeine',
 };
 const ENERGY_PRIORITY = ['208', '958', '957'];
 

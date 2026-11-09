@@ -182,7 +182,7 @@ function amountText(ing) {
 }
 
 function summaryHtml(n, label = 'per serving') {
-  const groups = [['Details', 'detail'], ['Vitamins', 'vitamin'], ['Minerals', 'mineral']];
+  const groups = [['Details', 'detail'], ['Vitamins', 'vitamin'], ['Minerals', 'mineral'], ['Other', 'other']];
   let table = '';
   for (const [title, g] of groups) {
     const rows = NUTRIENTS.filter((x) => x.group === g && n[x.key] != null);

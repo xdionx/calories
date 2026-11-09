@@ -107,7 +107,7 @@ function renderToday() {
   ring.style.strokeDashoffset = `${circ * (1 - pct)}`;
   ring.classList.toggle('over', left < 0);
 
-  $('#macro-bars').innerHTML = MACROS.map((m) => macroBar(m, totals[m.key] || 0, goals[m.key])).join('');
+  $('#macro-bars').innerHTML = MACROS.map((m) => macroBar(m, totals[m.key] || 0, goals[m.key])).join('') + caffeineBar(totals.caffeine);
 
   const entries = store.entriesFor(ui.date);
   $('#meals').innerHTML = MEALS.map((meal) => {
@@ -211,6 +211,18 @@ function openBurn(date = ui.date) {
     (b?.source === 'garmin' ? ' · from Garmin. Saving here stops Garmin updating this day.' : '');
   $('#burn-clear').hidden = !b;
   $('#burn-dialog').showModal();
+}
+
+// Shown when something logged that day reports caffeine.
+function caffeineBar(mg) {
+  if (mg == null) return '';
+  const limit = NUTRIENT_MAP.caffeine.dv;
+  const pct = (mg / limit) * 100;
+  return `
+    <div class="macro-row caffeine-row">
+      <div class="lbl"><span>Caffeine</span><b>${round(mg)} / ${limit} mg</b></div>
+      <div class="bar"><i style="width:${Math.min(pct, 100)}%;background:var(--caffeine)" class="${pct > 100 ? 'over' : ''}"></i></div>
+    </div>`;
 }
 
 function macroBar(m, value, goal) {
@@ -327,7 +339,7 @@ function updateFoodPreview() {
   $('#fd-macros').innerHTML = MACROS.map((m) => `
     <div class="fd-macro" style="--c:${m.color}"><b>${formatAmount(n[m.key] || 0, 'g')}</b><span>${m.label}</span></div>`).join('');
 
-  const groups = [['Details', 'detail'], ['Vitamins', 'vitamin'], ['Minerals', 'mineral']];
+  const groups = [['Details', 'detail'], ['Vitamins', 'vitamin'], ['Minerals', 'mineral'], ['Other', 'other']];
   let html = '';
   for (const [title, g] of groups) {
     const rows = NUTRIENTS.filter((x) => x.group === g && n[x.key] != null);
@@ -506,7 +518,7 @@ function renderMine() {
 function saveCustomFood(form) {
   const data = Object.fromEntries(new FormData(form));
   const nutrients = {};
-  for (const k of ['kcal', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'sodium', 'satFat']) {
+  for (const k of ['kcal', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'sodium', 'satFat', 'caffeine']) {
     if (data[k] !== '' && data[k] != null) nutrients[k] = parseFloat(data[k]);
   }
   const food = {

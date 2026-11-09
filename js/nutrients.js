@@ -37,6 +37,10 @@ export const NUTRIENTS = [
   { key: 'zinc', label: 'Zinc', unit: 'mg', group: 'mineral', dv: 11 },
   { key: 'copper', label: 'Copper', unit: 'mg', group: 'mineral', dv: 0.9 },
   { key: 'selenium', label: 'Selenium', unit: 'µg', group: 'mineral', dv: 55 },
+
+  // Other. Caffeine has no Daily Value; 400 mg is the FDA's suggested
+  // daily limit for healthy adults, so % here means "of that limit".
+  { key: 'caffeine', label: 'Caffeine', unit: 'mg', group: 'other', dv: 400, limit: true },
 ];
 
 export const NUTRIENT_MAP = Object.fromEntries(NUTRIENTS.map((n) => [n.key, n]));

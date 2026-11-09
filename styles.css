@@ -9,6 +9,7 @@
   --protein: #2563eb;
   --carbs: #d97706;
   --fat: #c026d3;
+  --caffeine: #8b5a2b;
   --over: #dc2626;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --radius: 14px;
@@ -27,6 +28,7 @@
     --protein: #60a5fa;
     --carbs: #fbbf24;
     --fat: #e879f9;
+    --caffeine: #d4a373;
     --over: #f87171;
     color-scheme: dark;
   }

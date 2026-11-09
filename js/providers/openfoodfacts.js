@@ -38,6 +38,7 @@ const MAP = [
   ['magnesium', 'magnesium', 1000],
   ['phosphorus', 'phosphorus', 1000],
   ['potassium', 'potassium', 1000],
+  ['caffeine', 'caffeine', 1000],
   ['zinc', 'zinc', 1000],
   ['copper', 'copper', 1000],
   ['selenium', 'selenium', 1e6],
