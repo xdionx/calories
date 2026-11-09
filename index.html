@@ -132,6 +132,43 @@
 
     <!-- SETTINGS -->
     <section class="view" id="view-settings" data-view="settings" hidden>
+      <div class="card form" id="account-card">
+        <h2>Account</h2>
+
+        <!-- Signed out -->
+        <form id="auth-form" class="form" hidden>
+          <p class="muted small">Sign in to keep your log, goals and foods in sync on your phone, tablet and computer.</p>
+          <label>Email <input type="email" name="email" required autocomplete="email" autocapitalize="off" spellcheck="false"></label>
+          <label>Password <input type="password" name="password" required minlength="6" autocomplete="current-password"></label>
+          <div class="btn-row">
+            <button class="btn primary grow" type="submit" data-auth="signin">Sign in</button>
+            <button class="btn grow" type="submit" data-auth="signup">Create account</button>
+          </div>
+          <button class="link-btn small" type="button" id="forgot-btn">Forgot password?</button>
+          <div class="status" id="auth-status"></div>
+        </form>
+
+        <!-- Signed in -->
+        <div id="account-info" class="form" hidden>
+          <p>Signed in as <b id="account-email"></b></p>
+          <p class="sync-line"><span class="sync-dot" id="sync-dot"></span><span id="sync-text" class="muted small"></span></p>
+          <div class="btn-row">
+            <button class="btn" type="button" id="sync-btn">Sync now</button>
+            <button class="btn" type="button" id="signout-btn">Sign out</button>
+          </div>
+        </div>
+
+        <!-- Back from a password reset email -->
+        <form id="newpass-form" class="form" hidden>
+          <p class="muted small">Choose a new password.</p>
+          <label>New password <input type="password" name="password" required minlength="6" autocomplete="new-password"></label>
+          <button class="btn primary" type="submit">Save password</button>
+          <div class="status" id="newpass-status"></div>
+        </form>
+
+        <p class="muted small" id="account-off" hidden>Accounts are not set up for this copy of the app yet, so your data stays on this device.</p>
+      </div>
+
       <form class="card form" id="goals-form">
         <h2>Daily goals</h2>
         <label>Calories <input type="number" name="kcal" min="0" step="10" inputmode="numeric"></label>
@@ -151,7 +188,7 @@
 
       <div class="card form">
         <h2>Your data</h2>
-        <p class="muted small">Everything is stored on this device only. Export a backup to move it to another phone or browser.</p>
+        <p class="muted small" id="data-note">Everything is stored on this device. Export a backup to keep a copy or move it to another browser.</p>
         <div class="btn-row">
           <button class="btn" id="export-btn">Export backup</button>
           <label class="btn">Import backup<input type="file" id="import-file" accept="application/json,.json" hidden></label>
