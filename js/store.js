@@ -15,8 +15,13 @@
 // A log entry is { id, date, meal, food, unitIndex, qty, nutrients, createdAt,
 // updatedAt } where `nutrients` is the already-scaled total for that entry.
 //
+// Calories burned per day: burn['YYYY-MM-DD'] = { date, active, resting,
+// source: 'garmin' | 'manual' | 'health', updatedAt }. `resting` may be null
+// (then the "Resting burn" goal is used).
+//
 // Sync model: the state is split into "items", each with a last-changed time:
 //   entry:<id>  one log entry          food:<id>  one custom food
+//   burn:<date> calories burned that day
 //   goals, settings, recent            whole objects
 // Changing something stamps it and marks its item pending. Sync pushes pending
 // items and applies newer remote ones (last write wins per item).
@@ -28,11 +33,14 @@ const SYNC_KEY = 'ct.sync.v1';
 export const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
 
 const DEFAULT_STATE = {
-  goals: { kcal: 2000, protein: 150, carbs: 200, fat: 67 },
+  // restingKcal: calories burned at rest per day (BMR), used when the
+  // source of a day's burn doesn't report it.
+  goals: { kcal: 2000, protein: 150, carbs: 200, fat: 67, restingKcal: 0 },
   settings: { usdaApiKey: '' },
   log: {}, // { 'YYYY-MM-DD': [entry, ...] }
   recent: [], // recently used foods (most recent first)
   myFoods: [], // custom foods the user created
+  burn: {}, // { 'YYYY-MM-DD': { date, active, resting, source, updatedAt } }
   stamps: { goals: 0, settings: 0, recent: 0 }, // last-changed times of whole-object items
 };
 
@@ -52,6 +60,7 @@ function normalize(parsed) {
     ...parsed,
     goals: { ...DEFAULT_STATE.goals, ...(parsed.goals || {}) },
     settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) },
+    burn: parsed.burn && typeof parsed.burn === 'object' ? parsed.burn : {},
     stamps: { ...DEFAULT_STATE.stamps, ...(parsed.stamps || {}) },
   };
 }
@@ -186,6 +195,43 @@ function rememberRecent(food) {
   touch('recent');
 }
 
+/* ---------------- Calories burned ---------------- */
+
+export function burnFor(date) {
+  return state.burn[date] || null;
+}
+
+// { active, resting, source }. Numbers are kcal; resting may be null.
+export function setBurn(date, { active, resting = null, source }) {
+  const clean = (n) => (n == null || n === '' || !Number.isFinite(+n) ? null : Math.max(0, Math.round(+n)));
+  const prev = state.burn[date];
+  const next = { date, active: clean(active) ?? 0, resting: clean(resting), source };
+  if (prev && prev.active === next.active && prev.resting === next.resting && prev.source === next.source) return false;
+  state.burn[date] = { ...next, updatedAt: stamp() };
+  touch(`burn:${date}`);
+  save();
+  return true;
+}
+
+export function removeBurn(date) {
+  if (!state.burn[date]) return;
+  delete state.burn[date];
+  touchDeleted(`burn:${date}`);
+  save();
+}
+
+// Eaten vs burned for a day. net < 0 is a deficit, > 0 a surplus.
+// Returns null when nothing burned is known for that day.
+export function balanceFor(date) {
+  const b = state.burn[date];
+  if (!b) return null;
+  const eaten = totalsFor(date).kcal || 0;
+  const restingFromGoal = !(b.resting > 0);
+  const resting = restingFromGoal ? state.goals.restingKcal || 0 : b.resting;
+  const burned = resting + (b.active || 0);
+  return { eaten, active: b.active || 0, resting, restingFromGoal, burned, net: eaten - burned, source: b.source };
+}
+
 /* ---------------- Custom foods, goals, settings ---------------- */
 
 export function saveMyFood(food) {
@@ -237,6 +283,7 @@ export function importData(json) {
     }
   }
   state.myFoods = state.myFoods.map((f) => ({ ...f, updatedAt: now }));
+  for (const b of Object.values(state.burn)) b.updatedAt = now;
   state.stamps = { goals: now, settings: now, recent: now };
   const after = allItems(state);
   for (const id of before) if (!after.has(id)) touchDeleted(id);
@@ -253,6 +300,7 @@ function allItems(s) {
     for (const e of day) items.set(`entry:${e.id}`, { kind: 'entry', data: e, updatedAt: e.updatedAt || 0 });
   }
   for (const f of s.myFoods) items.set(`food:${f.id}`, { kind: 'food', data: f, updatedAt: f.updatedAt || 0 });
+  for (const b of Object.values(s.burn || {})) items.set(`burn:${b.date}`, { kind: 'burn', data: b, updatedAt: b.updatedAt || 0 });
   items.set('goals', { kind: 'goals', data: s.goals, updatedAt: s.stamps.goals || 0 });
   items.set('settings', { kind: 'settings', data: s.settings, updatedAt: s.stamps.settings || 0 });
   items.set('recent', { kind: 'recent', data: s.recent, updatedAt: s.stamps.recent || 0 });
@@ -272,10 +320,17 @@ function findItem(itemId) {
     const f = state.myFoods.find((x) => x.id === itemId.slice(5));
     return f ? { kind: 'food', data: f, updatedAt: f.updatedAt || 0 } : null;
   }
-  return allItems({ ...state, log: {}, myFoods: [] }).get(itemId) || null;
+  if (itemId.startsWith('burn:')) {
+    const b = state.burn[itemId.slice(5)];
+    return b ? { kind: 'burn', data: b, updatedAt: b.updatedAt || 0 } : null;
+  }
+  return allItems({ ...state, log: {}, myFoods: [], burn: {} }).get(itemId) || null;
 }
 
-const kindOf = (itemId) => (itemId.startsWith('entry:') ? 'entry' : itemId.startsWith('food:') ? 'food' : itemId);
+const kindOf = (itemId) => {
+  for (const k of ['entry', 'food', 'burn']) if (itemId.startsWith(`${k}:`)) return k;
+  return itemId;
+};
 
 export const getSyncMeta = () => ({ owner: sync.owner, cursor: sync.cursor });
 
@@ -352,6 +407,10 @@ function putItem(row) {
     if (!deleted) {
       state.myFoods = [...state.myFoods, { ...data, updatedAt: row.updated_at }].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     }
+  } else if (kind === 'burn') {
+    const date = id.slice(5);
+    if (deleted) delete state.burn[date];
+    else state.burn[date] = { ...data, date, updatedAt: row.updated_at };
   } else if (kind === 'goals' || kind === 'settings' || kind === 'recent') {
     if (deleted) return;
     if (kind === 'goals') state.goals = { ...DEFAULT_STATE.goals, ...data };
@@ -372,7 +431,7 @@ export function markAllPending() {
     if (!state.stamps[k] && !isDefault(k)) state.stamps[k] = 1;
   }
   for (const [id, item] of allItems(state)) {
-    if (item.updatedAt || item.kind === 'entry' || item.kind === 'food') touch(id);
+    if (item.updatedAt || item.kind === 'entry' || item.kind === 'food' || item.kind === 'burn') touch(id);
   }
   save('sync');
 }

@@ -42,6 +42,8 @@
         </div>
       </div>
 
+      <div class="card balance" id="balance-card"></div>
+
       <div id="meals"></div>
 
       <div class="card">
@@ -125,6 +127,10 @@
         <div id="trend-chart" class="trend-chart"></div>
       </div>
       <div class="card">
+        <div class="card-head"><h2>Deficit or surplus</h2><span class="muted small" id="trend-net-sum"></span></div>
+        <div id="trend-net" class="trend-net"></div>
+      </div>
+      <div class="card">
         <div class="card-head"><h2>7-day averages</h2></div>
         <div id="trend-macros" class="trend-macros"></div>
       </div>
@@ -177,7 +183,26 @@
         <label>Carbs (g) <input type="number" name="carbs" min="0" step="1" inputmode="numeric"></label>
         <label>Fat (g) <input type="number" name="fat" min="0" step="1" inputmode="numeric"></label>
         <p class="muted small" id="goal-check"></p>
+        <label>Resting burn (kcal/day) <input type="number" name="restingKcal" min="0" step="10" inputmode="numeric" placeholder="e.g. 1700"></label>
+        <p class="muted small">Calories your body burns at rest (BMR). Used for the deficit when the day's source only reports active calories. Garmin reports both, so you can leave this empty if you use Garmin.</p>
         <button class="btn primary" type="submit">Save goals</button>
+      </form>
+
+      <form class="card form" id="garmin-form">
+        <h2>Garmin</h2>
+        <p class="muted small">Pull active and resting calories from Garmin Connect to see your daily deficit or surplus. You need to be signed in above.</p>
+        <ol class="muted small steps">
+          <li>On a computer, open <a href="https://connect.garmin.com/app/settings/personalApiToken" target="_blank" rel="noopener">Garmin Connect → Settings → Personal API</a> and create a key (pick 1 year).</li>
+          <li>Copy the key and paste it here. Garmin only shows it once.</li>
+        </ol>
+        <label>Garmin Personal API key <input type="password" name="garminKey" autocomplete="off" spellcheck="false" placeholder="Paste key"></label>
+        <p class="muted small">The key stays on this device and isn't saved to your account. Burned calories it pulls do sync to your other devices.</p>
+        <div class="btn-row">
+          <button class="btn primary" type="submit">Save key</button>
+          <button class="btn" type="button" id="garmin-pull">Pull last 14 days</button>
+          <button class="btn ghost" type="button" id="garmin-forget">Remove key</button>
+        </div>
+        <div class="status" id="garmin-status"></div>
       </form>
 
       <form class="card form" id="api-form">
@@ -254,6 +279,28 @@
       </div>
       <div class="sheet-actions">
         <button class="btn primary grow" type="submit">Save food</button>
+      </div>
+    </form>
+  </dialog>
+
+ <!-- Calories burned for a day -->
+  <dialog id="burn-dialog" class="sheet">
+    <form id="burn-form">
+      <div class="sheet-head">
+        <div>
+          <h2>Calories burned</h2>
+          <div class="muted small" id="burn-date"></div>
+        </div>
+        <button class="icon-btn" type="button" id="burn-close" aria-label="Close">✕</button>
+      </div>
+      <div class="grid2">
+        <label>Active <input name="active" type="number" min="0" step="1" inputmode="numeric" required></label>
+        <label>Resting <input name="resting" type="number" min="0" step="1" inputmode="numeric" placeholder="from goals"></label>
+      </div>
+      <p class="muted small" id="burn-note">Active is calories from movement and workouts. Resting is what your body burns anyway (Garmin calls it resting, Apple Health calls it resting energy). Leave resting empty to use your resting burn goal.</p>
+      <div class="sheet-actions">
+        <button class="btn danger" type="button" id="burn-clear" hidden>Clear</button>
+        <button class="btn primary grow" type="submit">Save</button>
       </div>
     </form>
   </dialog>
