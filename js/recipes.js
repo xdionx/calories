@@ -461,7 +461,7 @@ export function recipeAsFood(recipe) {
     source: 'Recipe',
     name: recipe.name || 'Recipe',
     brand: '',
-    nutrients: perServing(recipe),
+    nutrients: recipeNutrition(recipe),
     units: [
       { label: 'serving', factor: 1 },
       { label: `whole recipe (${servings} servings)`, factor: servings },
@@ -514,3 +514,89 @@ export function buildIngredient(parsed, food, candidates = null) {
   if (candidates) Object.defineProperty(ing, 'candidates', { value: candidates, enumerable: false, writable: true });
   return ing;
 }
+
+/* ---------------- Nutrition printed in the recipe ---------------- */
+// Many recipes (blogs, cookbooks, meal kits) print a nutrition line like
+// "Calories: 450 | Protein: 32g | Carbs: 41g | Fat: 14g" or
+// "Per serving: 450 calories, 32 g protein". When they do, those numbers are
+// used; the ingredient estimate covers whatever they leave out.
+
+const STATED_LABELS = [
+  ['kcal', /^(?:calories|cals?|kcals?|energy)$/i],
+  ['protein', /^proteins?$/i],
+  ['carbs', /^(?:total\s+)?carb(?:ohydrate)?s?$/i],
+  ['fat', /^(?:total\s+)?fats?$/i],
+  ['satFat', /^sat(?:urated)?\.?\s*fats?$/i],
+  ['fiber', /^(?:dietary\s+)?fib(?:er|re)s?$/i],
+  ['sugar', /^(?:total\s+)?sugars?$/i],
+  ['sodium', /^sodium$/i],
+  ['cholesterol', /^cholesterol$/i],
+];
+const LABEL_WORDS = '(calories|cals?|kcals?|energy|proteins?|(?:total\\s+)?carb(?:ohydrate)?s?|sat(?:urated)?\\.?\\s*fats?|(?:total\\s+)?fats?|(?:dietary\\s+)?fib(?:er|re)s?|(?:total\\s+)?sugars?|sodium|cholesterol)';
+const AMOUNT = '(\\d+(?:[.,]\\d+)?)\\s*(kcal|cal|calories|g|grams?|mg|milligrams?)?';
+const LABEL_FIRST = new RegExp(`${LABEL_WORDS}\\s*[:=\\-–]?\\s*${AMOUNT}`, 'gi');
+const AMOUNT_FIRST = new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(kcal|cal|g|grams?|mg)?\\s+(?:of\\s+)?${LABEL_WORDS}\\b`, 'gi');
+
+function labelKey(label) {
+  const l = label.trim().replace(/\s+/g, ' ');
+  for (const [key, re] of STATED_LABELS) if (re.test(l)) return key;
+  return null;
+}
+
+/**
+ * Nutrition per serving printed in the text, e.g. { kcal: 450, protein: 32 },
+ * or null when the recipe doesn't give calories.
+ */
+export function extractNutrition(text, servings = 1) {
+  const lines = String(text || '').replace(/\r/g, '').split('\n');
+  const out = {};
+  let inSection = false;
+  let wholeRecipe = false;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (/^nutrition\b/i.test(line)) {
+      inSection = true;
+      if (/\b(?:per|whole|entire)\s+recipe\b|\btotal\b/i.test(line)) wholeRecipe = true;
+    } else if (INGREDIENTS_HEAD.test(line) || DIRECTIONS_HEAD.test(line)) inSection = false;
+    // Only lines that are about nutrition: inside a Nutrition section, or
+    // starting with a label / "per serving", so "1 cup fat-free milk" in the
+    // ingredient list is never read as "fat: 1".
+    const looksLikeNutrition = inSection || /^(?:per serving|nutrition|calories|cals?\b|kcal|energy|protein|carb|total|fat|sat|fib|sugar|sodium|cholesterol|\d+\s*(?:kcal|cal(?:ories)?)\b)/i.test(line);
+    if (!looksLikeNutrition) continue;
+    if (/\b(?:per|whole|entire)\s+recipe\b/i.test(line)) wholeRecipe = true;
+    for (const m of line.matchAll(LABEL_FIRST)) {
+      const key = labelKey(m[1]);
+      if (key && out[key] == null) out[key] = toUnit(key, parseNumber(m[2]), m[3]);
+    }
+    for (const m of line.matchAll(AMOUNT_FIRST)) {
+      const key = labelKey(m[3]);
+      if (key && out[key] == null) out[key] = toUnit(key, parseNumber(m[1]), m[2]);
+    }
+  }
+  for (const k of Object.keys(out)) if (!Number.isFinite(out[k])) delete out[k];
+  if (!(out.kcal > 0)) return null;
+  if (wholeRecipe && servings > 1) for (const k of Object.keys(out)) out[k] /= servings;
+  return out;
+}
+
+function toUnit(key, value, unit) {
+  if (value == null) return null;
+  const u = (unit || '').toLowerCase();
+  if (key === 'sodium' || key === 'cholesterol') return u.startsWith('g') ? value * 1000 : value; // stored in mg
+  if (key !== 'kcal' && u.startsWith('m')) return value / 1000; // mg of a gram nutrient
+  return value;
+}
+
+/**
+ * The per-serving nutrition the app uses for a recipe: the recipe's own
+ * printed numbers when it has them (and you haven't switched to the
+ * estimate), filled in with the ingredient estimate for everything else.
+ */
+export function recipeNutrition(recipe) {
+  const est = perServing(recipe);
+  if (recipe.stated && recipe.useStated !== false) return { ...est, ...recipe.stated };
+  return est;
+}
+
+/** 'recipe' when the printed numbers are used, 'estimate' otherwise. */
+export const nutritionSource = (recipe) => (recipe.stated && recipe.useStated !== false ? 'recipe' : 'estimate');

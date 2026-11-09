@@ -22,10 +22,15 @@ const view = {
   picker: null, // index of the ingredient whose food picker is open
   matching: null, // AbortController while ingredients are looked up
   dirty: false,
+  opened: false, // book opened past its cover this visit
+  turn: null, // 'next' | 'prev': page-turn animation for the next render
 };
 
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
 const getRecipe = (id) => store.getState().recipes.find((r) => r.id === id);
+// The book's page order: alphabetical, like a contents page.
+const bookOrder = () => [...store.getState().recipes].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const apiKey = () => store.getState().settings.usdaApiKey;
 
 /* ---------------- Entry points ---------------- */
@@ -99,42 +104,74 @@ function showEditor(recipe = null) {
   if (!recipe) setTimeout(() => $('#rx-text').focus(), 50);
 }
 
-/* ---------------- List ---------------- */
+/* ---------------- Contents ---------------- */
 
 function renderList() {
-  const recipes = store.getState().recipes;
-  $('#recipe-list').innerHTML = recipes.map((r) => {
-    const n = rx.perServing(r);
+  const recipes = bookOrder();
+  $('#cover-count').textContent = recipes.length ? plural(recipes.length, 'recipe') : 'Empty, for now';
+  $('#book-cover').hidden = view.opened;
+  $('#book-contents').hidden = !view.opened;
+  $('#recipe-list').innerHTML = recipes.map((r, i) => {
+    const n = rx.recipeNutrition(r);
     return `
-      <li data-recipe="${esc(r.id)}">
-        <div class="info">
-          <div class="name">${esc(r.name || 'Untitled recipe')}</div>
-          <div class="sub">${r.servings} serving${r.servings === 1 ? '' : 's'} · ${r.ingredients.length} ingredient${r.ingredients.length === 1 ? '' : 's'}</div>
-          <div class="sub">P ${round(n.protein)}g · C ${round(n.carbs)}g · F ${round(n.fat)}g</div>
-        </div>
-        <div class="kcal">${round(n.kcal)}<small>kcal / serving</small></div>
+      <li data-recipe="${esc(r.id)}" tabindex="0" role="button">
+        <span class="toc-name">${esc(r.name || 'Untitled recipe')}<small>${round(n.kcal)} kcal a serving · P ${round(n.protein)} · C ${round(n.carbs)} · F ${round(n.fat)}</small></span>
+        <span class="toc-dots" aria-hidden="true"></span>
+        <span class="toc-page">${i + 1}</span>
       </li>`;
   }).join('');
   $('#recipe-empty').hidden = recipes.length > 0;
 }
 
-/* ---------------- Detail ---------------- */
+function openBook() {
+  view.opened = true;
+  const cover = $('#book-cover');
+  cover.classList.add('opening');
+  setTimeout(() => {
+    cover.classList.remove('opening');
+    renderList();
+  }, 380);
+}
+
+/* ---------------- A recipe's page ---------------- */
 
 function renderDetail() {
   const r = getRecipe(view.id);
   if (!r) return showList();
-  const n = rx.perServing(r);
+  const order = bookOrder();
+  const idx = order.findIndex((x) => x.id === r.id);
+  const n = rx.recipeNutrition(r);
+  const src = rx.nutritionSource(r);
   $('#rd-name').textContent = r.name || 'Untitled recipe';
-  $('#rd-meta').textContent = `${r.servings} serving${r.servings === 1 ? '' : 's'} · ${round(rx.recipeTotals(r).kcal).toLocaleString()} kcal for the whole recipe`;
-  $('#rd-summary').innerHTML = summaryHtml(n);
+  $('#rd-meta').textContent = `Serves ${r.servings}`;
+  $('#rd-summary').innerHTML = `<div class="rp-source">${src === 'recipe' ? 'Calories as printed in the recipe' : r.ingredients.length ? 'Calories worked out from the ingredients' : 'No calories yet'}</div>` + summaryHtml(n);
   $('#rd-ingredients').innerHTML = r.ingredients.map((ing) => {
     const k = rx.ingredientNutrients(ing).kcal;
-    return `<li><div class="info"><div class="name">${esc(ing.line)}</div>
-      <div class="sub">${ing.food ? `${esc(ing.food.name)} · ${esc(amountText(ing))}` : 'Not matched, not counted'}</div></div>
-      <div class="kcal">${ing.food && ing.amount ? round(k) : '–'}</div></li>`;
-  }).join('');
-  $('#rd-directions-card').hidden = !r.directions;
-  $('#rd-directions').textContent = r.directions || '';
+    return `<li><span class="ing-line">${esc(ing.line)}</span>
+      <span class="ing-match">${ing.food ? `${esc(ing.food.name)} · ${esc(amountText(ing))} · ${ing.amount ? `${round(k)} kcal` : 'not counted'}` : 'not matched, not counted'}</span></li>`;
+  }).join('') || '<li class="ing-match">No ingredients listed.</li>';
+  const steps = (r.directions || '').split(/\n+/).map((l) => l.trim().replace(/^(?:step\s*)?\d+[.):]\s*/i, '')).filter(Boolean);
+  $('#rd-directions-card').hidden = !steps.length;
+  $('#rd-directions').innerHTML = steps.map((l) => `<li>${esc(l)}</li>`).join('');
+  $('#rd-num').textContent = `${idx + 1} of ${order.length}`;
+  $('#rd-prev').disabled = idx <= 0;
+  $('#rd-next').disabled = idx >= order.length - 1;
+  const page = $('#rd-page');
+  if (view.turn) {
+    page.classList.remove('turn-next', 'turn-prev');
+    void page.offsetWidth; // restart the animation
+    page.classList.add(view.turn === 'next' ? 'turn-next' : 'turn-prev');
+    view.turn = null;
+  }
+}
+
+function turnPage(dir) {
+  const order = bookOrder();
+  const idx = order.findIndex((x) => x.id === view.id);
+  const next = order[idx + (dir === 'next' ? 1 : -1)];
+  if (!next) return;
+  view.turn = dir;
+  showDetail(next.id);
 }
 
 function amountText(ing) {
@@ -154,7 +191,7 @@ function summaryHtml(n, label = 'per serving') {
     table += rows.map((x) => `<tr><td>${x.label}</td><td>${formatAmount(n[x.key], x.unit)}</td><td>${x.dv ? `${round((n[x.key] / x.dv) * 100)}%` : ''}</td></tr>`).join('');
   }
   return `
-    <div class="fd-kcal"><b>${round(n.kcal).toLocaleString()}</b> kcal ${esc(label)}</div>
+    <div class="fd-kcal"><b>${round(n.kcal || 0).toLocaleString()}</b> kcal ${esc(label)}</div>
     <div class="fd-macros">${MACROS.map((m) => `<div class="fd-macro" style="--c:${m.color}"><b>${formatAmount(n[m.key] || 0, 'g')}</b><span>${m.label}</span></div>`).join('')}</div>
     <details class="fd-more"><summary>All nutrients ${esc(label)}</summary><table>${table || '<tr><td>No vitamin or mineral data.</td></tr>'}</table></details>`;
 }
@@ -170,7 +207,7 @@ function renderEditor() {
   f.directions.value = d.directions || '';
   $('#rx-title').textContent = d.isNew ? 'New recipe' : 'Edit recipe';
   $('#rx-delete').hidden = Boolean(d.isNew);
-  $('#rx-calc').textContent = d.ingredients.length ? 'Recalculate from text' : 'Work out nutrition';
+  $('#rx-calc').textContent = d.ingredients.length || d.stated ? 'Read the text again' : 'Work out calories';
   renderIngredients();
 }
 
@@ -179,7 +216,7 @@ function renderIngredients() {
   // Redrawing replaces the picker's search box: keep what's being typed there.
   const typing = document.activeElement?.matches('[data-picker-input]') ? document.activeElement : null;
   const typed = typing && { i: typing.dataset.pickerInput, value: typing.value, pos: typing.selectionStart };
-  $('#rx-ing-card').hidden = !d.ingredients.length;
+  $('#rx-ing-card').hidden = !d.ingredients.length && !d.stated;
   $('#rx-ingredients').innerHTML = d.ingredients.map((ing, i) => ingredientRow(ing, i)).join('');
   if (typed) {
     const input = $(`[data-picker-input="${typed.i}"]`);
@@ -247,8 +284,22 @@ function renderTotals() {
   const flags = [];
   if (unmatched) flags.push(`${unmatched} not matched`);
   if (notCounted) flags.push(`${notCounted} with no amount`);
-  $('#rx-total-note').textContent = `${round(total.kcal).toLocaleString()} kcal total ÷ ${servings} serving${servings === 1 ? '' : 's'}${flags.length ? ` · ${flags.join(', ')} (not counted)` : ''}`;
-  $('#rx-summary').innerHTML = summaryHtml(per);
+  $('#rx-total-note').textContent = d.ingredients.length
+    ? `Estimate: ${round(total.kcal).toLocaleString()} kcal total ÷ ${servings} serving${servings === 1 ? '' : 's'}${flags.length ? ` · ${flags.join(', ')} (not counted)` : ''}`
+    : '';
+  if (d.stated) {
+    const st = d.stated;
+    const useStated = d.useStated !== false;
+    $('#rx-source').innerHTML = `
+      <p class="rp-source">The recipe prints its own nutrition: <b>${round(st.kcal)} kcal</b> a serving${st.protein != null ? ` · P ${round(st.protein)}` : ''}${st.carbs != null ? ` · C ${round(st.carbs)}` : ''}${st.fat != null ? ` · F ${round(st.fat)}` : ''}.</p>
+      <div class="seg small-seg" role="radiogroup">
+        <button type="button" data-use-stated="1" class="${useStated ? 'active' : ''}">Use the recipe's numbers</button>
+        <button type="button" data-use-stated="0" class="${useStated ? '' : 'active'}" ${d.ingredients.some((x) => x.food) ? '' : 'disabled'}>Use my estimate${d.ingredients.length ? ` (${round(per.kcal)})` : ''}</button>
+      </div>`;
+  } else {
+    $('#rx-source').innerHTML = d.ingredients.length ? '<p class="rp-source">The recipe doesn\'t print calories, so they\'re worked out from the ingredients.</p>' : '';
+  }
+  $('#rx-summary').innerHTML = summaryHtml(rx.recipeNutrition({ ...d, servings }));
 }
 
 function readForm() {
@@ -265,6 +316,18 @@ async function calculate() {
   readForm();
   const d = view.draft;
   const parsed = rx.splitRecipe(d.text);
+  const stated = rx.extractNutrition(d.text, parsed.servings || d.servings);
+  if (!parsed.ingredientLines.length && stated) {
+    if (!d.name && parsed.title) d.name = parsed.title;
+    if (parsed.servings) d.servings = parsed.servings;
+    if (parsed.directions && !d.directions) d.directions = parsed.directions;
+    d.stated = stated;
+    d.useStated = true;
+    view.dirty = true;
+    renderEditor();
+    setStatus(`Using the recipe's own nutrition: ${round(stated.kcal)} kcal a serving. No ingredient list found to check it against.`);
+    return;
+  }
   if (!parsed.ingredientLines.length) {
     setStatus("Couldn't find any ingredients. Paste the ingredient list with one ingredient per line (an \"Ingredients\" heading helps).", true);
     return;
@@ -273,6 +336,8 @@ async function calculate() {
   if (!d.name && parsed.title) d.name = parsed.title;
   if (parsed.servings && (d.isNew || !d.ingredients.length)) d.servings = parsed.servings;
   if (parsed.directions && !d.directions) d.directions = parsed.directions;
+  d.stated = stated;
+  d.useStated = Boolean(stated);
   view.dirty = true;
 
   const items = parsed.ingredientLines.map(rx.parseIngredient);
@@ -408,7 +473,7 @@ function saveDraft() {
   readForm();
   const d = view.draft;
   if (view.matching) return deps.toast('Still looking up ingredients…');
-  if (!d.ingredients.length) return deps.toast('Work out the ingredients first.');
+  if (!d.ingredients.length && !d.stated) return deps.toast('Paste a recipe and tap "Work out calories" first.');
   if (!d.name) {
     $('#rx-form').elements.name.focus();
     return deps.toast('Give the recipe a name.');
@@ -421,13 +486,16 @@ function saveDraft() {
     servings: d.servings,
     text: d.text,
     directions: d.directions,
+    stated: d.stated || null,
+    useStated: d.stated ? d.useStated !== false : undefined,
     createdAt: d.createdAt,
     ingredients: d.ingredients.map(({ line, name, qty, unit, size, grams, counted, food, unitIndex, amount, note }) =>
       ({ line, name, qty, unit, size, grams, counted, food: food ? rx.slimFood(food) : null, unitIndex, amount: +amount || 0, note: note || '' })),
   };
   store.saveRecipe(clean);
   view.dirty = false;
-  deps.toast('Recipe saved');
+  view.opened = true;
+  deps.toast('Saved to your recipe book');
   showDetail(d.id);
 }
 
@@ -435,9 +503,44 @@ function saveDraft() {
 
 function bind() {
   $('#rx-new').onclick = () => showEditor();
+  $('#book-cover').onclick = openBook;
+  $('#book-close').onclick = () => {
+    view.opened = false;
+    renderList();
+  };
   $('#recipe-list').addEventListener('click', (e) => {
     const li = e.target.closest('li[data-recipe]');
     if (li) showDetail(li.dataset.recipe);
+  });
+  $('#recipe-list').addEventListener('keydown', (e) => {
+    const li = e.target.closest('li[data-recipe]');
+    if (li && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      showDetail(li.dataset.recipe);
+    }
+  });
+  $('#rd-prev').onclick = () => turnPage('prev');
+  $('#rd-next').onclick = () => turnPage('next');
+  // Swipe sideways on a recipe page to turn it.
+  let touch = null;
+  $('#rd-page').addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    touch = { x: t.clientX, y: t.clientY };
+  }, { passive: true });
+  $('#rd-page').addEventListener('touchend', (e) => {
+    if (!touch) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touch.x;
+    const dy = t.clientY - touch.y;
+    touch = null;
+    if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) turnPage(dx < 0 ? 'next' : 'prev');
+  }, { passive: true });
+  $('#rx-source').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-use-stated]');
+    if (!b || b.disabled) return;
+    view.draft.useStated = b.dataset.useStated === '1';
+    view.dirty = true;
+    renderTotals();
   });
 
   // Detail
@@ -456,6 +559,7 @@ function bind() {
   };
   $('#rx-calc').onclick = calculate;
   $('#rx-form').addEventListener('submit', (e) => e.preventDefault());
+  $('#recipe-editor textarea[name=directions]').addEventListener('input', () => (view.dirty = true));
   $('#rx-form').addEventListener('input', (e) => {
     view.dirty = true;
     if (e.target.name === 'servings') {
@@ -466,10 +570,10 @@ function bind() {
   $('#rx-save').onclick = saveDraft;
   $('#rx-delete').onclick = () => {
     const d = view.draft;
-    if (!confirm(`Delete “${d.name || 'this recipe'}”? Servings you already logged stay in your log.`)) return;
+    if (!confirm(`Tear “${d.name || 'this recipe'}” out of the book? Servings you already logged stay in your log.`)) return;
     store.deleteRecipe(d.id);
     view.dirty = false;
-    deps.toast('Recipe deleted');
+    deps.toast('Recipe removed');
     showList();
   };
   $('#rx-add-form').onsubmit = (e) => {

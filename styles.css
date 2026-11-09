@@ -312,9 +312,6 @@ textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .rx-cands { max-height: 300px; overflow-y: auto; }
 .rx-cands li { padding: 10px 12px; }
 .rx-cands li.chosen { background: var(--accent-soft); }
-.rx-static li { cursor: default; }
-.rx-static li:hover { background: none; }
-.rx-directions { white-space: pre-wrap; font-size: 0.95rem; }
 
 /* Weight */
 .weight-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; padding-bottom: 12px; }
@@ -419,3 +416,107 @@ svg.chart .s-avg.line { opacity: .55; }
 .split i:first-child { border-radius: 4px 0 0 4px; }
 .split i:last-child { border-radius: 0 4px 4px 0; }
 #tr-weight-note:empty, #tr-weekdays-note:empty { display: none; }
+
+/* Recipe book: a cloth-bound cover, then cream paper pages. The pages stay
+   paper-colored in dark mode too, like a real book under a lamp. */
+.book {
+  --paper: #fbf6e9; --paper-edge: #efe5cc; --ink: #2b2118; --ink-soft: #6d5c48; --rule: #e3d6b8;
+  --leather: #6b2d22; --leather-dark: #4a1d16; --gold: #d9b45a;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+  perspective: 1600px;
+}
+@media (prefers-color-scheme: dark) {
+  .book { --paper: #e9e0c9; --paper-edge: #d6c8a6; --rule: #d2c29c; }
+}
+.book-cover {
+  position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 3 / 4; max-height: 72vh; margin: 8px auto 0;
+  border: 0; border-radius: 6px 14px 14px 6px; cursor: pointer; color: var(--gold); font-family: var(--serif);
+  background:
+    linear-gradient(90deg, rgb(0 0 0 / .35) 0, rgb(0 0 0 / .1) 14px, rgb(255 255 255 / .06) 16px, transparent 22px),
+    radial-gradient(120% 90% at 30% 20%, #8a3a2c 0%, var(--leather) 45%, var(--leather-dark) 100%);
+  box-shadow: 0 1px 0 rgb(255 255 255 / .08) inset, 8px 10px 22px rgb(0 0 0 / .28), 3px 3px 0 var(--paper-edge), 5px 5px 0 #d8caa6;
+  transform-origin: left center; transition: transform .38s ease, opacity .38s ease;
+}
+.book-cover.opening { transform: rotateY(-80deg); opacity: 0; }
+.cover-frame {
+  display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 34px 26px; margin: 0 22px 0 34px;
+  border: 2px solid color-mix(in srgb, var(--gold) 70%, transparent); outline: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); outline-offset: 5px; border-radius: 4px;
+}
+.cover-orn { font-size: 2rem; line-height: 1; }
+.cover-title { font-size: clamp(1.9rem, 9vw, 2.6rem); font-style: italic; letter-spacing: .02em; text-shadow: 0 1px 0 rgb(0 0 0 / .35); text-align: center; }
+.cover-rule { width: 70%; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+.cover-sub { font-size: .95rem; letter-spacing: .14em; text-transform: uppercase; opacity: .85; }
+.cover-hint { position: absolute; bottom: 18px; font: 600 .78rem/1 var(--font); letter-spacing: .08em; text-transform: uppercase; opacity: .6; }
+
+.page {
+  position: relative; display: flex; flex-direction: column; gap: 14px;
+  background: linear-gradient(90deg, rgb(0 0 0 / .07), transparent 18px), var(--paper);
+  color: var(--ink); font-family: var(--serif);
+  padding: 18px 20px 22px 26px; border-radius: 3px 10px 10px 3px; min-height: 60vh;
+  box-shadow: 2px 2px 0 var(--paper-edge), 4px 4px 0 #ddd0b0, 6px 7px 16px rgb(0 0 0 / .18);
+  transform-origin: left center;
+}
+.page .muted, .page label { color: var(--ink-soft); }
+.page h2, .page h3 { font-family: var(--serif); }
+.page-top { display: flex; justify-content: space-between; }
+.page-link { background: none; border: 0; padding: 6px 0; font: 600 .9rem var(--font); color: var(--leather); cursor: pointer; }
+.page-link:disabled { opacity: .25; cursor: default; }
+.page-title { font-size: 1.7rem; font-weight: 600; font-style: italic; line-height: 1.15; margin: 0; text-align: center; }
+.page-num { font-size: .85rem; color: var(--ink-soft); text-align: center; font-style: italic; }
+.contents .page-num { margin-top: auto; }
+.page-empty { margin: 0; color: var(--ink-soft); font-style: italic; text-align: center; padding: 10px 6px; }
+.book .btn.primary { background: var(--leather); border-color: var(--leather); color: #fbf1dc; }
+.book .btn { background: transparent; border-color: var(--rule); color: var(--ink); }
+.book .btn.danger { color: #9f1d1d; }
+.book-add { align-self: center; }
+
+/* Contents */
+.toc { list-style: none; margin: 0; padding: 0; }
+.toc li { display: flex; align-items: flex-end; gap: 6px; padding: 10px 2px; border-bottom: 1px solid var(--rule); cursor: pointer; }
+.toc li:hover, .toc li:focus-visible { background: rgb(107 45 34 / .06); outline: none; }
+.toc-name { font-size: 1.1rem; min-width: 0; }
+.toc-name small { display: block; font: .76rem/1.3 var(--font); color: var(--ink-soft); margin-top: 2px; }
+.toc-dots { flex: 1; border-bottom: 2px dotted color-mix(in srgb, var(--ink-soft) 55%, transparent); margin-bottom: 6px; min-width: 16px; }
+.toc-page { font-style: italic; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+/* A recipe page */
+.ribbon { position: absolute; top: -4px; right: 26px; width: 16px; height: 64px; background: #a3272b; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%); box-shadow: 0 2px 3px rgb(0 0 0 / .2); }
+.rp-meta { text-align: center; color: var(--ink-soft); font-style: italic; margin-top: -8px; }
+.rp-card { background: rgb(255 255 255 / .55); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.rp-card .fd-kcal, .rp-card .fd-kcal b { color: var(--ink); }
+.rp-card .fd-macro { background: var(--paper); }
+.rp-card .fd-macro span, .rp-card .fd-more td:nth-child(3), .rp-card .fd-more tr.group td { color: var(--ink-soft); }
+.rp-card .fd-more summary { color: var(--leather); font-family: var(--font); }
+.rp-card .fd-more td { border-color: var(--rule); }
+.rp-source { margin: 0; font: italic .9rem/1.35 var(--serif); color: var(--ink-soft); }
+.rp-card .seg { background: var(--rule); }
+.rp-card .seg button { color: var(--ink-soft); }
+.rp-card .seg button.active { background: var(--paper); color: var(--ink); }
+.rp-head { margin: 6px 0 0; font-size: 1.15rem; font-weight: 600; border-bottom: 1px solid var(--rule); padding-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.rp-head .muted { font: .75rem var(--font); font-weight: 400; }
+.rp-ingredients { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rp-ingredients li { padding-left: 18px; position: relative; }
+.rp-ingredients li::before { content: "❧"; position: absolute; left: 0; top: 0; color: var(--leather); font-size: .85rem; }
+.ing-line { display: block; font-size: 1.02rem; }
+.ing-match { display: block; font: .76rem/1.35 var(--font); color: var(--ink-soft); }
+.rp-directions { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 10px; font-size: 1.02rem; line-height: 1.5; }
+.rp-directions li::marker { color: var(--leather); font-style: italic; }
+.page-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--rule); }
+.page-foot .page-link { font-size: 1.6rem; line-height: 1; padding: 4px 12px; }
+.turn-next { animation: turn-next .45s ease; }
+.turn-prev { animation: turn-prev .45s ease; }
+@keyframes turn-next { from { transform: rotateY(-70deg); opacity: .2; } to { transform: none; opacity: 1; } }
+@keyframes turn-prev { from { transform: rotateY(70deg); transform-origin: right center; opacity: .2; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .turn-next, .turn-prev { animation: none; } .book-cover { transition: none; } }
+
+/* Editor page */
+.editor-page textarea, .editor-page input, .editor-page select { background: rgb(255 255 255 / .7); border-color: var(--rule); color: var(--ink); }
+.editor-page #rx-text { background: repeating-linear-gradient(transparent 0 23px, var(--rule) 23px 24px), rgb(255 255 255 / .6); line-height: 24px; font-family: var(--serif); }
+.editor-page .rx-list { background: rgb(255 255 255 / .45); border-color: var(--rule); }
+.editor-page .rx-ing { border-color: var(--rule); }
+.editor-page .rx-food, .editor-page .rx-remove { color: var(--ink-soft); }
+.editor-page .food-list { background: var(--paper); border-color: var(--rule); }
+.editor-page .food-list li { border-color: var(--rule); }
+.editor-page .food-list .sub, .editor-page .food-list .kcal small { color: var(--ink-soft); }
+.editor-page .status { color: var(--ink-soft); }
+.rx-dir-label textarea { font-family: var(--serif); }

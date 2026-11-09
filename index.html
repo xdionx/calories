@@ -124,65 +124,87 @@
       </div>
     </section>
 
-    <!-- RECIPES -->
+    <!-- RECIPE BOOK -->
     <section class="view" id="view-recipes" data-view="recipes" hidden>
-      <div id="recipe-list-wrap" class="tab">
-        <div class="card-head"><h2>Recipes</h2><button class="btn small primary" id="rx-new">+ New recipe</button></div>
-        <ul id="recipe-list" class="food-list"></ul>
-        <div class="card" id="recipe-empty">
-          <p class="muted small" style="margin:0">Paste a recipe (ingredients and directions, straight from a website or a card) and Fuel Log works out calories, macros, vitamins and minerals per serving. Saved recipes show up here and under Add food so you can log a serving in one tap.</p>
+      <div id="recipe-list-wrap" class="book">
+        <button type="button" class="book-cover" id="book-cover" aria-label="Open the recipe book">
+          <span class="cover-frame">
+            <span class="cover-orn" aria-hidden="true">❦</span>
+            <span class="cover-title">Recipe Book</span>
+            <span class="cover-rule" aria-hidden="true"></span>
+            <span class="cover-sub" id="cover-count"></span>
+          </span>
+          <span class="cover-hint">Tap to open</span>
+        </button>
+
+        <div class="page contents" id="book-contents" hidden>
+          <div class="page-top"><button type="button" class="page-link" id="book-close">Close book</button></div>
+          <h2 class="page-title">Contents</h2>
+          <ol id="recipe-list" class="toc"></ol>
+          <p class="page-empty" id="recipe-empty">No recipes yet. Paste one in (ingredients, directions, and the nutrition line if it has one) and it gets its own page here, with calories per serving worked out for you.</p>
+          <button type="button" class="btn primary book-add" id="rx-new">+ Add a recipe</button>
+          <div class="page-num">i</div>
         </div>
       </div>
 
-      <div id="recipe-detail" class="tab" hidden>
-        <div class="menu-head"><button class="btn ghost" id="rd-back">‹ Recipes</button></div>
-        <div class="card form">
-          <div><h2 id="rd-name"></h2><div class="muted small" id="rd-meta"></div></div>
-          <div id="rd-summary" class="form"></div>
+      <div id="recipe-detail" class="book" hidden>
+        <article class="page recipe-page" id="rd-page">
+          <span class="ribbon" aria-hidden="true"></span>
+          <div class="page-top"><button type="button" class="page-link" id="rd-back">‹ Contents</button></div>
+          <h2 class="page-title" id="rd-name"></h2>
+          <div class="rp-meta" id="rd-meta"></div>
+          <div class="rp-card" id="rd-summary"></div>
           <div class="btn-row">
             <button class="btn primary grow" id="rd-log">Log a serving</button>
             <button class="btn" id="rd-edit">Edit</button>
           </div>
-        </div>
-        <div class="card-head"><h2>Ingredients</h2><span class="muted small">kcal, whole recipe</span></div>
-        <ul id="rd-ingredients" class="food-list rx-static"></ul>
-        <div class="card" id="rd-directions-card">
-          <div class="card-head"><h2>Directions</h2></div>
-          <div id="rd-directions" class="rx-directions"></div>
-        </div>
+          <h3 class="rp-head">Ingredients</h3>
+          <ul id="rd-ingredients" class="rp-ingredients"></ul>
+          <div id="rd-directions-card">
+            <h3 class="rp-head">Directions</h3>
+            <ol id="rd-directions" class="rp-directions"></ol>
+          </div>
+          <div class="page-foot">
+            <button type="button" class="page-link" id="rd-prev" aria-label="Previous recipe">‹</button>
+            <span class="page-num" id="rd-num"></span>
+            <button type="button" class="page-link" id="rd-next" aria-label="Next recipe">›</button>
+          </div>
+        </article>
       </div>
 
-      <div id="recipe-editor" class="tab" hidden>
-        <div class="menu-head"><button class="btn ghost" id="rx-back">‹ Back</button><h2 id="rx-title">New recipe</h2></div>
-        <form class="card form" id="rx-form">
-          <label>Paste the recipe <textarea name="text" id="rx-text" rows="8" placeholder="Paste the whole recipe here: title, servings, ingredients and directions.&#10;&#10;Ingredients&#10;2 cups cooked rice&#10;1 lb chicken breast&#10;1 tbsp olive oil&#10;...&#10;&#10;Directions&#10;1. Heat the oil..."></textarea></label>
-          <button class="btn primary" type="button" id="rx-calc">Work out nutrition</button>
-          <div class="status" id="rx-status"></div>
-          <div class="grid2">
-            <label>Name <input name="name" placeholder="e.g. Chicken stir fry" autocomplete="off"></label>
-            <label>Servings <input name="servings" type="number" min="1" step="1" inputmode="numeric" value="4"></label>
-          </div>
-        </form>
-
-        <div id="rx-ing-card" class="tab">
-          <div class="card form">
-            <div id="rx-summary" class="form"></div>
-            <p class="muted small" id="rx-total-note"></p>
-          </div>
-          <div class="card-head"><h2>Ingredients</h2><span class="muted small">tap a match to change it</span></div>
-          <div id="rx-ingredients" class="rx-list"></div>
-          <form id="rx-add-form" class="search-row">
-            <input id="rx-add-input" placeholder="Add an ingredient, e.g. 2 tbsp butter" autocomplete="off" enterkeyhint="done">
-            <button class="btn" type="submit">Add</button>
+      <div id="recipe-editor" class="book" hidden>
+        <div class="page editor-page">
+          <div class="page-top"><button type="button" class="page-link" id="rx-back">‹ Back</button></div>
+          <h2 class="page-title" id="rx-title">New recipe</h2>
+          <form class="form" id="rx-form">
+            <label>Paste the recipe <textarea name="text" id="rx-text" rows="8" placeholder="Paste the whole recipe: title, servings, ingredients, directions, and the nutrition line if it has one.&#10;&#10;Ingredients&#10;2 cups cooked rice&#10;1 lb chicken breast&#10;1 tbsp olive oil&#10;...&#10;&#10;Directions&#10;1. Heat the oil..."></textarea></label>
+            <button class="btn primary" type="button" id="rx-calc">Work out calories</button>
+            <div class="status" id="rx-status"></div>
+            <div class="grid2">
+              <label>Name <input name="name" placeholder="e.g. Chicken stir fry" autocomplete="off"></label>
+              <label>Servings <input name="servings" type="number" min="1" step="1" inputmode="numeric" value="4"></label>
+            </div>
           </form>
-        </div>
 
-        <form class="card form" onsubmit="return false">
-          <label>Directions <textarea name="directions" form="rx-form" rows="6" placeholder="Optional"></textarea></label>
-        </form>
-        <div class="btn-row">
-          <button class="btn danger" type="button" id="rx-delete" hidden>Delete</button>
-          <button class="btn primary grow" type="button" id="rx-save">Save recipe</button>
+          <div id="rx-ing-card" class="form">
+            <div class="rp-card">
+              <div id="rx-source"></div>
+              <div id="rx-summary" class="form"></div>
+              <p class="muted small" id="rx-total-note"></p>
+            </div>
+            <h3 class="rp-head">Ingredients <span class="muted small">tap a match to change it</span></h3>
+            <div id="rx-ingredients" class="rx-list"></div>
+            <form id="rx-add-form" class="search-row">
+              <input id="rx-add-input" placeholder="Add an ingredient, e.g. 2 tbsp butter" autocomplete="off" enterkeyhint="done">
+              <button class="btn" type="submit">Add</button>
+            </form>
+          </div>
+
+          <label class="rx-dir-label">Directions <textarea name="directions" form="rx-form" rows="6" placeholder="Optional"></textarea></label>
+          <div class="btn-row">
+            <button class="btn danger" type="button" id="rx-delete" hidden>Tear out page</button>
+            <button class="btn primary grow" type="button" id="rx-save">Save to book</button>
+          </div>
         </div>
       </div>
     </section>
