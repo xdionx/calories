@@ -7,7 +7,8 @@ A phone-friendly web app (installable PWA) for tracking calories, macros, vitami
 - **Food database search** across USDA FoodData Central (whole foods, best vitamin/mineral data) and Open Food Facts (packaged foods).
 - **Restaurants**: pick a restaurant, then browse or filter its menu. Full menus from official nutrition guides for Mo' Bettahs, Little Caesars and Domino's, plus Jurassic Tacos (estimated: they publish no nutrition). McDonald's, Wendy's, Taco Bell and Chick-fil-A are still short sample menus. More sources plug in through a small provider interface.
 - **Calories burned and daily deficit/surplus**: pulls active and resting calories from Garmin Connect (or takes them from Apple Health via a Shortcut, or typed in) and shows eaten − burned for each day, plus a 7-day deficit/surplus chart on Trends.
-- **Custom foods**, recent foods, 7-day trends, editable goals, and JSON backup/restore.
+- **Trends** for 7, 30 or 90 days: highlights (averages, total deficit, days on target, logging streak, weight change), eaten vs burned, daily deficit/surplus, weight with a 7-day average and the weight your logged deficit predicts, macro split vs goal, calories by meal, top foods, weekday pattern and nutrient averages. Hover or tap for details; tap again to open that day.
+- **Custom foods**, recent foods, editable goals, and JSON backup/restore.
 - **Accounts and sync** (optional): sign in with email and password and your log, goals, custom foods, recent foods and settings sync across devices. Without an account, data stays in the browser's local storage on the device.
 
 ## Run it
