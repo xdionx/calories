@@ -223,9 +223,21 @@ function unitText(entry) {
   return qty === 1 ? unit.label : `${qty} × ${unit.label}`;
 }
 
+// Product photo (Open Food Facts gives one for most packaged foods), or a
+// lettered placeholder for foods without one.
+const safeImage = (url) => (/^https:\/\/[^\s"'<>]+$/.test(url || '') ? url : '');
+function thumb(food, cls = '') {
+  const url = safeImage(food.image);
+  const letter = esc((food.name || '?').trim().charAt(0).toUpperCase());
+  return url
+    ? `<span class="thumb ${cls}" data-letter="${letter}"><img src="${esc(url)}" alt="" loading="lazy" decoding="async"></span>`
+    : `<span class="thumb ${cls} none" data-letter="${letter}"></span>`;
+}
+
 function entryRow(e) {
   return `
     <div class="entry" data-entry="${e.id}">
+      ${thumb(e.food, 'sm')}
       <div class="info">
         <div class="name">${esc(e.food.name)}</div>
         <div class="sub">${esc(e.food.brand ? `${e.food.brand} · ` : '')}${esc(unitText(e))}</div>
@@ -263,6 +275,7 @@ function foodRow(food) {
   const sub = [food.brand && food.brand !== food.source ? food.brand : '', food.category || ''].filter(Boolean).join(' · ');
   return `
     <li data-food="${esc(food.id)}">
+      ${thumb(food)}
       <div class="info">
         <div class="name">${esc(food.name)}</div>
         <div class="sub"><span class="tag">${esc(food.source)}</span>${esc(sub)}</div>
@@ -281,6 +294,7 @@ function openFood(food, { entry = null, meal = ui.addMeal } = {}) {
   dlg.food = food;
   dlg.editing = entry;
   $('#fd-name').textContent = food.name;
+  $('#fd-thumb').innerHTML = thumb(food, 'lg');
   $('#fd-meta').textContent = [food.brand, food.source, food.barcode ? `#${food.barcode}` : ''].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ');
   $('#fd-unit').innerHTML = food.units.map((u, i) => `<option value="${i}">${esc(u.label)}</option>`).join('');
   $('#fd-meal').innerHTML = MEALS.map((m) => `<option ${m === (entry?.meal || meal) ? 'selected' : ''}>${m}</option>`).join('');
@@ -1161,6 +1175,14 @@ function importBurnFromUrl() {
 }
 
 importBurnFromUrl();
+// A photo that fails to load falls back to the lettered placeholder.
+document.addEventListener('error', (e) => {
+  if (e.target.tagName === 'IMG' && e.target.parentElement?.classList.contains('thumb')) {
+    e.target.parentElement.classList.add('none');
+    e.target.remove();
+  }
+}, true);
+
 bind();
 bindAccount();
 sync.init();

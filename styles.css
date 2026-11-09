@@ -298,3 +298,15 @@ label.check input { width: 20px; height: 20px; flex: none; accent-color: var(--a
 .rec-goals span { font-size: 0.75rem; color: var(--muted); }
 .recommend p { margin: 0; }
 .recommend h3 { margin: 0; font-size: 0.95rem; }
+
+/* Food photos */
+.thumb { flex: none; width: 44px; height: 44px; border-radius: 10px; overflow: hidden; background: #fff; border: 1px solid var(--line); display: grid; place-items: center; }
+.thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.thumb.none { background: var(--accent-soft); border-color: transparent; }
+.thumb.none::after { content: attr(data-letter); font-weight: 700; color: var(--accent); font-size: 1.05rem; }
+.thumb.sm { width: 36px; height: 36px; border-radius: 8px; }
+.thumb.sm.none::after { font-size: 0.9rem; }
+.thumb.lg { width: 72px; height: 72px; border-radius: 14px; }
+.thumb.lg.none::after { font-size: 1.6rem; }
+.fd-thumb:empty { display: none; }
+.sheet-head .grow { flex: 1; min-width: 0; }
