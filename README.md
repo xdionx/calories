@@ -52,7 +52,7 @@ One-time setup:
 
 1. **Deploy the function.** Supabase dashboard → **Edge Functions → Deploy a new function → Via editor**. Name it `garmin`, replace the sample code with the contents of `supabase/functions/garmin/index.ts`, and click **Deploy**. Then open the function's **Details** and turn **Verify JWT with legacy secret** **off**: the function checks the caller is signed in itself, and with the setting on, the gateway can reject the app's requests without CORS headers, which shows up as "Failed to send a request". (Or with the CLI: `supabase functions deploy garmin --no-verify-jwt`.) No secrets to set.
 2. **Make a Garmin key.** On a computer, sign in at [Garmin Connect → Settings → Personal API](https://connect.garmin.com/app/settings/personalApiToken), create a key (choose 1 year), and copy it. Garmin shows it once.
-3. **Paste it in the app**: Settings → Garmin → Save key. The app pulls the last 14 days, then refreshes the week around whatever day you look at (today every 15 minutes at most).
+3. **Paste it in the app**: Settings → Garmin → Save key. The app pulls the last 14 days once. After that, each time you open the app (or come back to it) it pulls the last 3 days, at most every 15 minutes. An older day you open is fetched once if it has no calories yet, and **Pull last 14 days** in Settings goes further back.
 
 The key is kept in that device's local storage only; it isn't synced to your account. The burned calories it pulls do sync. A day you edit by hand is left alone by Garmin until you clear it. When the key expires, Garmin emails you; make a new one and paste it again.
 
