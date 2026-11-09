@@ -1040,6 +1040,9 @@ function bind() {
     resizeTimer = setTimeout(() => ui.view === 'trends' && renderTrends(), 200);
   });
 
+  // iPhone Safari ignores user-scalable=no; block pinch zoom directly.
+  ['gesturestart', 'gesturechange'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault(), { passive: false }));
+
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) stopScanning();
     else garmin.refreshAround(ui.date);
