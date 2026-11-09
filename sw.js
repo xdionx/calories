@@ -1,0 +1,37 @@
+// Offline support: the app shell is cached; food database calls always go to
+// the network (and fail gracefully when offline).
+const CACHE = 'fuel-log-v1';
+const SHELL = [
+  './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
+  'js/app.js', 'js/store.js', 'js/nutrients.js', 'js/scanner.js',
+  'js/providers/index.js', 'js/providers/openfoodfacts.js', 'js/providers/usda.js',
+  'js/providers/restaurants/index.js', 'js/providers/restaurants/provider.js', 'js/providers/restaurants/sample-menus.js',
+  'vendor/zxing.min.js',
+];
+
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+});
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  // Network first so updates show up, cache as fallback for offline.
+  e.respondWith(
+    fetch(e.request)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(e.request, copy));
+        return res;
+      })
+      .catch(() => caches.match(e.request).then((r) => r || caches.match('index.html')))
+  );
+});
