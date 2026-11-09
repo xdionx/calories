@@ -40,6 +40,8 @@ function emit(changes) {
 export const onChange = (fn) => (listeners.add(fn), () => listeners.delete(fn));
 export const hasKey = () => Boolean(store.getState().settings.garminLinked || saved.apiKey);
 export const lastPulled = () => saved.lastOk || null;
+// Set when a key saved by an older version is still only on this device.
+export const localOnly = () => (saved.apiKey ? saved.migrateError || 'not moved yet' : null);
 
 // Checks the key with Garmin and saves it to the account.
 export async function saveKey(apiKey) {
@@ -67,8 +69,11 @@ async function migrateLocalKey() {
     saved.apiKey = '';
     persist();
     store.setSettings({ garminLinked: true });
+    delete saved.migrateError;
   } catch (e) {
     console.warn('Garmin key stays on this device for now:', e.message);
+    saved.migrateError = e.message;
+    persist();
   }
 }
 
