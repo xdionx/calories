@@ -315,6 +315,7 @@ function openFood(food, { entry = null, meal = ui.addMeal } = {}) {
   dlg.editing = entry;
   $('#fd-name').textContent = food.name;
   $('#fd-thumb').innerHTML = thumb(food, 'lg');
+  $('#fd-note').textContent = food.note || '';
   $('#fd-meta').textContent = [food.brand, food.source, food.barcode ? `#${food.barcode}` : ''].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ');
   $('#fd-unit').innerHTML = food.units.map((u, i) => `<option value="${i}">${esc(u.label)}</option>`).join('');
   $('#fd-meal').innerHTML = MEALS.map((m) => `<option ${m === (entry?.meal || meal) ? 'selected' : ''}>${m}</option>`).join('');
@@ -453,13 +454,19 @@ async function handleBarcode(code) {
   const status = $('#scan-status');
   status.className = 'status';
   status.textContent = `Found barcode ${code}. Looking it up…`;
-  const food = await lookupBarcode(code, { apiKey: store.getState().settings.usdaApiKey });
+  const mine = store.getState().myFoods.find((f) => f.barcode === code);
+  const food = mine || (await lookupBarcode(code, { apiKey: store.getState().settings.usdaApiKey }));
   if (food) {
     status.textContent = `Barcode ${code}: ${food.name}`;
     openFood(food);
   } else {
     status.className = 'status error';
-    status.textContent = `No nutrition data found for barcode ${code}. Try searching by name, or create it under Recent → Create food.`;
+    status.innerHTML = `No nutrition data found for barcode ${esc(code)}. That happens with newer or supplement products. <button type="button" class="btn small" id="scan-to-label">Photograph the label instead</button>`;
+    $('#scan-to-label').onclick = () => {
+      pendingBarcode = code;
+      ui.addTab = 'label';
+      renderAddTab();
+    };
   }
 }
 
@@ -526,7 +533,7 @@ function renderMine() {
 
 /* Create a food (also the review screen after photographing a label) */
 const CUSTOM_MAIN = ['kcal', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'sodium', 'satFat', 'caffeine'];
-const custom = { grams: null, perContainer: null };
+const custom = { grams: null, perContainer: null, barcode: '' };
 
 function buildCustomExtras() {
   $('#custom-more-fields').innerHTML = NUTRIENTS.filter((n) => !CUSTOM_MAIN.includes(n.key)).map((n) =>
@@ -538,11 +545,13 @@ function buildCustomExtras() {
  * filled in; `fixed` ones are marked "check me" and `estimated` ones are
  * marked as rough.
  */
-function openCustom({ title = 'Create a food', values = {}, fixed = [], estimated = [], warnings = [], serving = '', grams = null, perContainer = null } = {}) {
+function openCustom({ title = 'Create a food', values = {}, fixed = [], estimated = [], warnings = [], serving = '', grams = null, perContainer = null, note = '', barcode = '' } = {}) {
   const form = $('#custom-form');
   form.reset();
   custom.grams = grams;
   custom.perContainer = perContainer;
+  custom.barcode = barcode;
+  form.elements.note.value = note;
   $('#custom-title').textContent = title;
   form.elements.serving.value = serving || '1 serving';
   $$('#custom-form label[data-field], #custom-form label.field-check, #custom-form label.field-est').forEach((l) => l.classList.remove('field-check', 'field-est'));
@@ -583,6 +592,8 @@ function saveCustomFood(form) {
     source: 'My food',
     name: data.name.trim(),
     brand: '',
+    ...(custom.barcode ? { barcode: custom.barcode } : {}),
+    ...(data.note.trim() ? { note: data.note.trim() } : {}),
     nutrients,
     units,
     defaultUnit: 0,
@@ -608,6 +619,7 @@ function labelStatus(msg, kind = '') {
 }
 
 let labelBusy = false;
+let pendingBarcode = '';
 async function handleLabelPhoto(file) {
   if (!file || labelBusy) return;
   labelBusy = true;
@@ -645,7 +657,10 @@ async function handleLabelPhoto(file) {
       serving: parsed.serving.text,
       grams: parsed.serving.grams,
       perContainer: parsed.perContainer,
+      note: parsed.others?.length ? `Also per serving: ${parsed.others.join(', ')}` : '',
+      barcode: pendingBarcode,
     });
+    pendingBarcode = '';
   } catch (e) {
     labelStatus(e.message || 'Could not read that photo.', 'error');
   } finally {

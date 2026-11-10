@@ -63,8 +63,25 @@ function distance(a, b) {
   return prev[n];
 }
 
+// Supplement labels print vitamins as "B3 (as Niacinamide) 15mg" or
+// "Vitamin B12 ...", often after other text from the pouch. Finds the vitamin
+// at any word position: returns { key, at } or null.
+function bVitamin(words) {
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i].toLowerCase().replace(/[^a-z0-9]/g, '');
+    const next = norm(words[i + 1] || '');
+    if (/^(vitamin)?b12$/.test(w)) return { key: 'vitB12', at: i };
+    if (/^(vitamin)?b3$/.test(w)) return { key: 'niacin', at: i };
+    if (/^(vitamin)?b5?6$/.test(w)) return { key: 'vitB6', at: i };
+    if (w === 'vitamin' && /^b-?12$/i.test(words[i + 1] || '')) return { key: 'vitB12', at: i + 1 };
+    if (w.length >= 6 && distance(w.replace(/[^a-z]/g, ''), 'niacinamide') <= 2) return { key: 'niacin', at: i };
+    if (w.length >= 6 && distance(w.replace(/[^a-z]/g, ''), 'pyridoxine') <= 2 && next) return { key: 'vitB6', at: i };
+  }
+  return null;
+}
+
 // The nutrient a row is about, judged by its first one to four words.
-function rowKey(row) {
+function rowKey(row, minLen = 0) {
   const words = row.split(/\s+/).map(norm).filter(Boolean);
   if (!words.length) return null;
   let best = null;
@@ -74,6 +91,7 @@ function rowKey(row) {
     for (const [key, phrases] of PHRASES) {
       for (const phrase of phrases) {
         const p = norm(phrase);
+        if (p.length < minLen) continue;
         const d = distance(cand, p);
         const tol = p.length <= 3 ? 0 : p.length <= 7 ? 1 : 2;
         if (d <= tol) {
@@ -90,7 +108,7 @@ function rowKey(row) {
 /* ---------------- Numbers ---------------- */
 
 // A reading like "379", "Og", "O.5g", "160mg", "2mcg", "10%".
-const TOKEN = /^([0-9OoQDIl|]{1,5}(?:[.,][0-9OoQD]{1,2})?)\s*(mg|mcg|µg|μg|ug|m9|mq|rng|g|q|9|%|y0|0\/0|o\/o)?[.,;:*]?$/i;
+const TOKEN = /^<?([0-9OoQDIl|]{1,5}(?:[.,][0-9OoQD]{1,2})?)\s*(mg|mcg|meg|mog|mcq|µg|μg|ug|m9|mq|rng|g|q|9|%|y0|0\/0|o\/o)?[.,;:*]*$/i;
 
 function digits(s) {
   return s.replace(/[OoQD]/g, '0').replace(/[Il|]/g, '1').replace(',', '.');
@@ -112,7 +130,7 @@ export function readToken(token, wantGrams = false) {
   if (unit === 'm9' || unit === 'mq' || unit === 'rng') unit = 'mg';
   if (unit === 'q') unit = 'g';
   if (unit === 'y0' || unit === '0/0' || unit === 'o/o') unit = '%';
-  if (unit === 'μg' || unit === 'µg' || unit === 'ug') unit = 'mcg';
+  if (unit === 'μg' || unit === 'µg' || unit === 'ug' || unit === 'meg' || unit === 'mog' || unit === 'mcq') unit = 'mcg';
   if (unit === '9') {
     // "3" + "g" read as one "9"? A trailing 9 with another digit before it.
     unit = 'g';
@@ -144,6 +162,30 @@ function convert(value, from, to) {
 }
 
 /* ---------------- The label ---------------- */
+
+// "(as Niacinamide)" and "(from Coffee Fruit Extract)" name the source, not an amount.
+function stripSource(tokens) {
+  const out = [];
+  let skipping = false;
+  for (const t of tokens) {
+    if (!skipping && /^\((as|from)$/i.test(t)) skipping = true;
+    if (skipping) {
+      if (t.includes(')')) skipping = false;
+      continue;
+    }
+    out.push(t);
+  }
+  return out;
+}
+
+// A supplement panel also lists things the app does not track ("L-Theanine 100mg").
+function noteOther(row, list) {
+  const m = row.replace(/\([^)]*\)?/g, ' ').match(/([A-Za-z][A-Za-z\-]*(?:\s+[A-Za-z][A-Za-z\-]*){0,2})[®™*]*\s+(\d{1,5}(?:\.\d+)?)\s*(mg|mcg|g)\b/i);
+  if (!m) return;
+  const name = m[1].replace(/\b(ou|ow|o|a)\b/gi, '').replace(/\s+/g, ' ').trim();
+  if (name.length < 4 || /^(powder|extract|blend|root|leaf|acid)$/i.test(name) || /serving|size|net|wt|per|value|daily/i.test(name)) return;
+  list.push(`${name} ${m[2]} ${m[3].toLowerCase()}`);
+}
 
 /**
  * Parses text from a Nutrition Facts panel.
@@ -179,6 +221,9 @@ export function parseLabel(text) {
     }
     const pc = r.match(/(?:about\s+)?(\d+(?:\.\d+)?)\s*serv\w*\s*per\s*(?:container|package|pack|bottle|can)/i) || r.match(/serv\w*\s*per\s*(?:container|package|pack|bottle|can)\s*[:\-]?\s*(?:about\s+)?(\d+(?:\.\d+)?)/i);
     if (pc && out.perContainer == null) out.perContainer = parseFloat(pc[1]);
+    // Supplement labels: "Servings Per Container: Approx. 30".
+    const ap = r.match(/\bap+rox\.?\s*(\d{1,3})\b/i) || r.match(/\ba\s*p+rox\.?\s*(\d{1,3})\b/i);
+    if (ap && out.perContainer == null) out.perContainer = parseFloat(ap[1]);
   }
 
   // Calories: a row that begins with "Calories". The number may be on this
@@ -186,7 +231,7 @@ export function parseLabel(text) {
   for (let i = 0; i < rows.length; i++) {
     // "Calories 150  Calories from Fat 45": keep the first part only.
     const r = rows[i].replace(/^[^A-Za-z]*/, '').replace(/calor\w*\s*from\s*fat.*$/i, '').trim();
-    if (!/^calor\w{0,3}s?\b/i.test(r) || /per\s*day|a\s*day|2,?000/i.test(r) || r.split(/\s+/).length > 5) continue;
+    if (distance(norm(r.split(/\s+/)[0] || ''), 'calories') > 2 || norm(r.split(/\s+/)[0] || '').length < 5 || /per\s*day|a\s*day|2,?000/i.test(r) || r.split(/\s+/).length > 5) continue;
     let k = null;
     for (const t of r.split(/\s+/).slice(1)) {
       const v = readToken(t);
@@ -211,19 +256,44 @@ export function parseLabel(text) {
   }
 
   // Everything else, row by row.
+  const others = [];
   for (const row of rows) {
-    const rk = rowKey(row.replace(/^[^A-Za-z]*/, ''));
-    if (!rk || rk.key === 'kcal') continue;
+    const clean = row.replace(/^[^A-Za-z]*/, '');
+    let rk = rowKey(clean);
+    let tokens = clean.split(/\s+/);
+    if (!rk) {
+      // Rows from a supplement panel can start with text from the pouch beside it.
+      const bv = bVitamin(row.split(/\s+/));
+      if (bv) {
+        rk = { key: bv.key, take: 1 };
+        tokens = row.split(/\s+/).slice(bv.at);
+      }
+    }
+    if (!rk) {
+      // Text from the pouch can sit in front of a long nutrient name ("... Caffeine (from ...) 100mg").
+      const ws = clean.split(/\s+/);
+      for (let i = 1; i < ws.length && !rk; i++) {
+        const hit = rowKey(ws.slice(i).join(' '), 7);
+        if (hit && hit.take === 1) {
+          rk = hit;
+          tokens = ws.slice(i);
+        }
+      }
+    }
+    if (!rk) {
+      noteOther(row, others);
+      continue;
+    }
+    if (rk.key === 'kcal') continue;
     const key = rk.key;
     if (key in out.nutrients) continue;
-    let tokens = row.replace(/^[^A-Za-z]*/, '').split(/\s+/);
     let cands;
     if (key === 'addedSugar') {
       // "Includes 10g Added Sugars 20%": the amount comes before the words.
       const idx = tokens.findIndex((t) => /^added/i.test(t));
       cands = tokens.slice(0, idx < 0 ? tokens.length : idx).reverse().concat(tokens.slice(idx < 0 ? tokens.length : idx + 1));
     } else {
-      cands = tokens.slice(Math.max(1, rk.take));
+      cands = stripSource(tokens).slice(Math.max(1, rk.take));
     }
     const wantGrams = GRAM_KEYS.has(key);
     let amount = null;
@@ -231,6 +301,7 @@ export function parseLabel(text) {
     for (const t of cands) {
       const v = readToken(t, wantGrams);
       if (!v) continue;
+      if (v.unit === '' && (MICRO.has(key) || key === 'caffeine') && !/%$/.test(t)) continue;
       if (v.unit === '%') {
         pct ??= v.value;
         continue;
@@ -271,13 +342,14 @@ export function parseLabel(text) {
   }
 
   out.count = Object.keys(out.nutrients).length;
+  out.others = others.slice(0, 12);
   const n = out.nutrients;
   const macroKcal = (n.protein ?? 0) * 4 + (n.carbs ?? 0) * 4 + (n.fat ?? 0) * 9;
   if (n.kcal != null && (n.protein != null || n.carbs != null || n.fat != null)) {
     const missing = ['protein', 'carbs', 'fat'].filter((k) => n[k] == null);
     if (!missing.length && Math.abs(macroKcal - n.kcal) > Math.max(40, n.kcal * 0.3)) {
       out.warnings.push(`The calories (${Math.round(n.kcal)}) don't match the protein, carbs and fat (about ${Math.round(macroKcal)}). Check the numbers against the label.`);
-    } else if (missing.length) {
+    } else if (missing.length && n.kcal > 20) {
       out.warnings.push(`Couldn't read ${missing.map((k) => NUTRIENT_MAP[k].label.toLowerCase()).join(' or ')}. Fill it in from the label.`);
     }
   }
@@ -291,5 +363,7 @@ export function parseLabel(text) {
 export function scoreReading(text) {
   const p = parseLabel(text);
   const core = ['kcal', 'fat', 'carbs', 'protein', 'sodium'].filter((k) => p.nutrients[k] != null).length;
-  return core + Math.min(3, p.count - core) * 0.5 + (p.nutrients.kcal != null ? 1 : 0);
+  const base = core + Math.min(3, p.count - core) * 0.5 + (p.nutrients.kcal != null ? 1 : 0);
+  // A supplement panel has few of the core rows but several vitamins.
+  return Math.max(base, p.count >= 5 ? p.count + 2 : 0);
 }
