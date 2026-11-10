@@ -63,9 +63,39 @@ const SWAPS = [
   s('smoothie', 'Banana, berry and Greek yogurt smoothie', '16 oz, made at home', ['creamy', 'sweet', 'drink'], 250, 15, 40, 2, 0.8, 5, 26, 60, 5),
   s('yogurt-parfait', 'Greek yogurt parfait with berries and oats', '1 cup', ['creamy', 'sweet'], 220, 16, 30, 4, 1.5, 4, 16, 70, 8),
   s('egg-muffin', 'Egg and veggie English muffin', '1 sandwich, whole wheat', ['egg', 'baked', 'meat'], 280, 20, 28, 10, 3.5, 4, 4, 480, 190),
+  s('veggie-scramble', 'Veggie egg scramble with whole-wheat toast', '2 eggs + 1 slice', ['egg', 'meat', 'baked'], 270, 18, 20, 13, 4, 4, 3, 420, 330),
+  s('breakfast-burrito', 'Egg and black bean breakfast burrito', '1 small whole-wheat burrito', ['egg', 'meat', 'taco', 'baked'], 300, 20, 32, 10, 3.5, 7, 2, 520, 190),
   s('side-salad', 'Side salad with vinaigrette', '1.5 cups', ['snack'], 80, 2, 8, 5, 0.7, 3, 3, 150, 0),
   s('almonds', 'Almonds', '1 oz (about 23 nuts)', ['snack', 'sweet'], 164, 6, 6, 14, 1.1, 3.5, 1.2, 0, 0),
 ];
+
+
+// Which meals each idea suits: B breakfast, L lunch, D dinner, S snack.
+// A breakfast item only gets breakfast ideas, a snack only snack ideas, and so on.
+const MEALS_OF = {
+  strawberries: 'BLDS', apple: 'BLDS', blueberries: 'BLDS', 'yogurt-berries': 'BS', 'dark-chocolate': 'LDS', applepb: 'BS',
+  oatmeal: 'B', 'frozen-grapes': 'LDS', sparkling: 'BLDS', 'iced-tea': 'BLDS', 'milk-skim': 'BLDS',
+  'chicken-breast': 'LD', turkey: 'LD', salmon: 'LD', 'black-beans': 'LD', 'sweet-potato': 'LD', popcorn: 'S',
+  'carrots-hummus': 'LS', chickpeas: 'S', 'egg-whites': 'B', yogurt: 'BS', cottage: 'BS', 'string-cheese': 'S',
+  'avocado-toast': 'BS', 'turkey-burger': 'LD', 'chicken-sandwich': 'LD', 'veggie-burger': 'LD', 'thin-pizza': 'LD',
+  'turkey-dog': 'LD', 'chicken-tacos': 'LD', 'burrito-bowl': 'LD', 'baked-tenders': 'LD', smoothie: 'BS',
+  'yogurt-parfait': 'B', 'egg-muffin': 'B', 'veggie-scramble': 'B', 'breakfast-burrito': 'B', 'side-salad': 'LD', almonds: 'BS',
+};
+
+// Breakfast foods are recognised by what they are, wherever they were logged.
+const BREAKFAST = /breakfast|\begg|omelet|omelette|scramble|mcmuffin|biscuit|hotcake|pancake|waffle|french toast|hash brown|croissan|bagel|oatmeal|cereal|grits|danish/i;
+
+/** B, L, D or S: what kind of meal is this? From the food itself first, then where it was logged. */
+export function mealKey(food, slot = '') {
+  if (BREAKFAST.test(`${food?.name || ''} ${food?.category || ''}`)) return 'B';
+  const m = String(slot).toLowerCase();
+  if (m.startsWith('b')) return 'B';
+  if (m.startsWith('l')) return 'L';
+  if (m.startsWith('d')) return 'D';
+  if (m.startsWith('s')) return 'S';
+  return '';
+}
+const suits = (sw, mk) => !mk || (MEALS_OF[sw.id.replace('swap:', '')] || 'BLDS').includes(mk);
 
 // What kind of food is it? Drives which swaps make sense (a milkshake gets
 // sweet and creamy ideas, bacon gets leaner protein, not strawberries).
@@ -141,7 +171,7 @@ function dayGaps(day) {
  *   adds     - things to add to round the meal out
  * `meal` is the totals of everything logged in that meal (including this item).
  */
-export function analyze(food, n, meal = n, day = null) {
+export function analyze(food, n, meal = n, day = null, slot = '') {
   const keys = concernKeys(n);
   const dg = dayGaps(day);
   const gaps = [...new Set([...gapsOf(meal), ...dg.out])];
@@ -149,8 +179,10 @@ export function analyze(food, n, meal = n, day = null) {
   const flagged = keys.length > 0 || bigAndThin;
   if (!flagged) return { flagged: false, concerns: [], gaps: [], notes: [], swaps: [], adds: [] };
   const kinds = kindsOf(food);
+  const mk = mealKey(food, slot);
+  const pool = SWAPS.filter((sw) => suits(sw, mk));
 
-  const swaps = SWAPS.map((sw) => {
+  const swaps = pool.map((sw) => {
     const gains = keys
       .filter((k) => (sw.nutrients[k] ?? 0) <= (n[k] ?? 0) * 0.5 && (n[k] ?? 0) - (sw.nutrients[k] ?? 0) >= (k === 'sodium' || k === 'cholesterol' ? 50 : 3))
       .map((k) => ({ k, by: (n[k] ?? 0) - (sw.nutrients[k] ?? 0) }));
@@ -171,7 +203,7 @@ export function analyze(food, n, meal = n, day = null) {
     const min = gap === 'protein' ? 10 : 3;
     // Additions should suit the food: meat-style adds only beside meat, eggs, fried or baked foods.
     const rank = (sw) => sw.nutrients[field] / (sw.nutrients.kcal + 40) + 0.15 * sw.tags.filter((t) => kinds.includes(t)).length + (sw.tags.includes('snack') ? 0.05 : 0);
-    SWAPS.filter((sw) => sw.nutrients[field] >= min && !taken.has(sw.id) && sw.nutrients.kcal <= 220 && (!sw.tags.includes('meat') || sw.tags.some((t) => kinds.includes(t))))
+    pool.filter((sw) => sw.nutrients[field] >= min && !taken.has(sw.id) && sw.nutrients.kcal <= 220 && (!sw.tags.includes('meat') || sw.tags.some((t) => kinds.includes(t))))
       .sort((a, b) => rank(b) - rank(a))
       .slice(0, 2)
       .forEach((sw) => {
