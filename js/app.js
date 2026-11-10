@@ -69,7 +69,7 @@ function showView(view) {
   if (view === 'settings') renderSettings();
   if (view === 'recipes') recipeUI.render();
   if (view === 'groceries') groceryUI.render();
-  window.scrollTo({ top: 0 });
+  document.querySelector('main').scrollTo({ top: 0 });
 }
 
 function setDate(key) {
