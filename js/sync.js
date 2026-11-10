@@ -36,6 +36,7 @@ let again = false;
 let timer = null;
 
 export const getAccount = () => account;
+export const getClient = () => client;
 
 export function onChange(fn) {
   listeners.add(fn);

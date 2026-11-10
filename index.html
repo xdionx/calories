@@ -144,6 +144,39 @@
       </div>
     </section>
 
+    <!-- GROCERIES -->
+    <section class="view" id="view-groceries" data-view="groceries" hidden>
+      <div class="card gl-card">
+        <div class="card-head"><h2>Groceries</h2><button class="btn small" type="button" id="gl-house-btn">Family</button></div>
+        <div class="muted small" id="gl-house-line"></div>
+        <span class="field-label">Store</span>
+        <div class="gl-chips" id="gl-stores"></div>
+        <p class="muted small" id="gl-store-note"></p>
+      </div>
+      <div class="card gl-card">
+        <div class="card-head"><h2>This week's meals</h2><button class="btn small" type="button" id="gl-add-meal">+ Add a recipe</button></div>
+        <ul class="gl-meals" id="gl-meals"></ul>
+      </div>
+      <div class="card gl-card">
+        <div class="card-head"><h2>Other items</h2></div>
+        <form id="gl-add-form" class="gl-add">
+          <input id="gl-add-input" placeholder="milk, 2 lb chicken, 3 bananas" autocomplete="off" enterkeyhint="done">
+          <button class="btn primary" type="submit">Add</button>
+        </form>
+        <div class="gl-chips wrap" id="gl-staples"></div>
+      </div>
+      <div class="card gl-card">
+        <div class="card-head"><h2>Shopping list</h2><span class="gl-total" id="gl-total"></span></div>
+        <div id="gl-list"></div>
+        <div class="gl-actions">
+          <label class="gl-hide"><input type="checkbox" id="gl-hide-done"> Hide checked</label>
+          <button class="btn small" type="button" id="gl-compare">Compare stores</button>
+          <button class="btn small danger" type="button" id="gl-clear">New week</button>
+        </div>
+        <p class="muted small footnote">Prices are rough estimates, not the store's own. Tap a department name to type your store's aisle.</p>
+      </div>
+    </section>
+
     <!-- RECIPE BOOK -->
     <section class="view" id="view-recipes" data-view="recipes" hidden>
       <div id="recipe-list-wrap" class="book">
@@ -386,9 +419,28 @@
     <button data-nav="today" class="active"><span class="ti">◐</span>Today</button>
     <button data-nav="add"><span class="ti">＋</span>Add food</button>
     <button data-nav="recipes"><span class="ti">▤</span>Recipes</button>
+    <button data-nav="groceries"><span class="ti">☷</span>Groceries</button>
     <button data-nav="trends"><span class="ti">▥</span>Trends</button>
     <button data-nav="settings"><span class="ti">⚙</span>Settings</button>
   </nav>
+
+  <!-- Groceries: pick a recipe -->
+  <dialog id="gl-recipe-dialog" class="sheet">
+    <div class="sheet-head"><h2>Add a recipe to this week</h2><button class="icon-btn" type="button" id="gl-recipe-close" aria-label="Close">✕</button></div>
+    <ul class="food-list" id="gl-recipe-list"></ul>
+  </dialog>
+
+  <!-- Groceries: compare stores -->
+  <dialog id="gl-compare-dialog" class="sheet">
+    <div class="sheet-head"><h2>Compare stores</h2><button class="icon-btn" type="button" id="gl-compare-close" aria-label="Close">✕</button></div>
+    <div id="gl-compare-body"></div>
+  </dialog>
+
+  <!-- Groceries: household -->
+  <dialog id="gl-house-dialog" class="sheet">
+    <div class="sheet-head"><h2>Shop together</h2><button class="icon-btn" type="button" id="gl-house-close" aria-label="Close">✕</button></div>
+    <div id="gl-house-body"></div>
+  </dialog>
 
   <!-- Food detail / edit -->
   <dialog id="food-dialog" class="sheet">
