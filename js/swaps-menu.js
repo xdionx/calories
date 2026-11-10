@@ -19,6 +19,10 @@ function roleOf(f) {
   return cat || 'other';
 }
 
+// A lighter pick shouldn't be the same signature item in another size (Baconator -> Son of Baconator).
+const GENERIC = /^(chicken|sandwich|burger|cheeseburger|hamburger|cheese|bacon|double|single|crispy|spicy|classic|grilled|ranch|large|medium|small|regular|original|breakfast)$/;
+const keyWords = (name) => (name.toLowerCase().match(/[a-z]{5,}/g) || []).filter((w) => !GENERIC.test(w));
+
 const cut = (was, now) => (was > 0 ? 1 - now / was : 0);
 const pretty = (v, unit) => `${Math.round(v)} ${unit}`;
 
@@ -36,9 +40,10 @@ export async function menuAlternatives(food, one) {
     return [];
   }
   const role = roleOf(food);
+  const mine = keyWords(food.name);
   const clean = (s) => (s || '').replace(/\s*\(approx\.\)/i, '').trim().toLowerCase();
   const scored = menu
-    .filter((m) => m.id !== food.id && clean(m.name) !== clean(food.name) && roleOf(m) === role)
+    .filter((m) => m.id !== food.id && clean(m.name) !== clean(food.name) && roleOf(m) === role && !keyWords(m.name).some((w) => mine.includes(w)))
     .map((m) => {
       const c = { ...m.nutrients };
       const kcalCut = cut(one.kcal, c.kcal);
@@ -48,10 +53,14 @@ export async function menuAlternatives(food, one) {
       // Keeping protein makes it a real replacement, not just a smaller version.
       const keep = one.protein > 5 ? Math.min((c.protein ?? 0) / one.protein, 1) : 1;
       const worth = kcalCut >= 0.2 || satCut >= 0.3 || (sugarCut >= 0.4 && (one.sugar ?? 0) >= 15);
-      return { m, kcalCut, satCut, sodiumCut, sugarCut, worth, keep, score: kcalCut + satCut + 0.5 * sodiumCut + 0.5 * sugarCut + 0.8 * keep };
+      // Better macros: protein per calorie should go up, not just calories down.
+      const dens = c.kcal > 0 && one.protein > 0 ? Math.min(c.protein / c.kcal / (one.protein / one.kcal), 1.6) : 1;
+      return { m, kcalCut, satCut, sodiumCut, sugarCut, worth, keep, score: Math.min(kcalCut, 0.6) + Math.min(satCut, 0.5) + 0.5 * sodiumCut + 0.5 * sugarCut + 0.6 * keep + 1.0 * dens };
     })
-    .filter((x) => x.worth && x.kcalCut > 0 && x.keep >= 0.4)
+    .filter((x) => x.worth && x.kcalCut > 0 && x.keep >= 0.5)
     .sort((a, b) => b.score - a.score)
+    // Near-identical items (same calories and protein, e.g. spicy and classic) count once.
+    .filter((x, i, all) => all.findIndex((y) => y.m.nutrients.kcal === x.m.nutrients.kcal && y.m.nutrients.protein === x.m.nutrients.protein) === i)
     .slice(0, 3);
   return scored.map(({ m }) => {
     const c = m.nutrients;
@@ -64,3 +73,6 @@ export async function menuAlternatives(food, one) {
     return { ...m, restaurant: rest.name, gain: parts.slice(0, 3).join(' · ') };
   });
 }
+
+/** Is this a chain-restaurant item we have a menu for? */
+export const isRestaurantFood = (food) => RESTAURANTS.some((r) => r.name === food.brand || r.name === food.source);
