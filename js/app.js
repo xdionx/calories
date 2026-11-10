@@ -308,7 +308,7 @@ function foodRow(food) {
 const shortUnit = (label) => (label.length > 18 ? label.replace(/\s*\(.*\)/, '') : label);
 
 /* ---------------- Food dialog ---------------- */
-const dlg = { food: null, editing: null };
+const dlg = { food: null, editing: null, meal: 'Breakfast' };
 
 function openFood(food, { entry = null, meal = ui.addMeal } = {}) {
   dlg.food = food;
@@ -318,7 +318,8 @@ function openFood(food, { entry = null, meal = ui.addMeal } = {}) {
   $('#fd-note').textContent = food.note || '';
   $('#fd-meta').textContent = [food.brand, food.source, food.barcode ? `#${food.barcode}` : ''].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ');
   $('#fd-unit').innerHTML = food.units.map((u, i) => `<option value="${i}">${esc(u.label)}</option>`).join('');
-  $('#fd-meal').innerHTML = MEALS.map((m) => `<option ${m === (entry?.meal || meal) ? 'selected' : ''}>${m}</option>`).join('');
+  dlg.meal = entry?.meal || meal;
+  renderDialogMeals();
   $('#fd-unit').value = String(entry ? entry.unitIndex : food.defaultUnit || 0);
   $('#fd-qty').value = entry ? +entry.qty.toFixed(2) : (food.units[food.defaultUnit || 0].label === 'g' ? 100 : 1);
   $('#fd-delete').hidden = !entry;
@@ -356,7 +357,7 @@ function updateFoodPreview() {
 function saveFromDialog() {
   const unitIndex = +$('#fd-unit').value;
   const qty = dialogQty();
-  const meal = $('#fd-meal').value;
+  const meal = dlg.meal;
   if (qty <= 0) return toast('Enter an amount above zero.');
   if (dlg.editing) {
     store.updateEntry(dlg.editing.date, dlg.editing.id, { unitIndex, qty, meal });
@@ -380,6 +381,11 @@ function renderAddTab() {
   if (ui.addTab === 'restaurants') renderRestaurants();
   if (ui.addTab === 'mine') renderMine();
   if (ui.addTab === 'search' && !$('#search-input').value) setTimeout(() => $('#search-input').focus(), 50);
+}
+
+function renderDialogMeals() {
+  $('#fd-meal').innerHTML = MEALS.map((m) =>
+    `<button type="button" role="tab" data-meal="${m}" aria-selected="${m === dlg.meal}" class="${m === dlg.meal ? 'active' : ''}">${m}</button>`).join('');
 }
 
 function renderMealTabs() {
@@ -955,6 +961,12 @@ function bind() {
     if (!b) return;
     ui.addTab = b.dataset.tab;
     renderAddTab();
+  });
+  $('#fd-meal').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-meal]');
+    if (!b) return;
+    dlg.meal = b.dataset.meal;
+    renderDialogMeals();
   });
   $('#add-meal').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-meal]');

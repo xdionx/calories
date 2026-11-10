@@ -224,6 +224,8 @@ dialog.sheet form { display: flex; flex-direction: column; gap: 12px; padding: 1
 .sheet-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .sheet-head h2 { font-size: 1.15rem; }
 .sheet-head .icon-btn { font-size: 1.1rem; flex: none; }
+.field-group { display: flex; flex-direction: column; gap: 6px; }
+.field-label { font-size: 0.85rem; color: var(--muted); }
 .qty-row { display: flex; gap: 10px; }
 .qty-row label:first-child { width: 110px; flex: none; }
 .fd-kcal { font-size: 0.95rem; color: var(--muted); }
