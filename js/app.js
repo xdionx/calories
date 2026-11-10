@@ -5,6 +5,7 @@ import { searchFoods, lookupBarcode } from './providers/index.js';
 import { RESTAURANTS, getRestaurant } from './providers/restaurants/index.js';
 import { startScanner } from './scanner.js';
 import { analyze } from './swaps.js';
+import { menuAlternatives } from './swaps-menu.js';
 import * as groceryUI from './grocery-ui.js';
 import * as sync from './sync.js';
 import * as garmin from './garmin.js';
@@ -345,34 +346,42 @@ function openFood(food, { entry = null, meal = ui.addMeal } = {}) {
   $('#food-dialog').showModal();
 }
 
-const ideaButtons = (list, offset, n) => list.map((f, i) => `
+const ideaButtons = (list, offset) => list.map((f, i) => `
     <button type="button" class="swap-item" data-swap="${offset + i}">
       <span><b>${esc(f.name)}</b><small>${esc(f.units[0].label)} · ${Math.round(f.nutrients.kcal)} kcal</small></span>
       <span class="swap-kcal swap-gain">${esc(f.gain.split(' · ').join('\n'))}</span></button>`).join('');
 const joinWords = (w) => (w.length > 1 ? w.slice(0, -1).join(', ') + ' and ' + w[w.length - 1] : w[0] || '');
 
-// Ideas panel: swaps that cut what the item leans on, then additions that round out the meal.
-function swapHtml(a) {
+// Ideas panel, in order: same-menu replacements, lighter swaps, then additions that round out the meal.
+// `alts` are the like-for-like items from the same restaurant's menu (loaded separately).
+const ideaList = (a, alts = []) => [...alts, ...a.swaps, ...a.adds];
+function swapHtml(a, alts = []) {
   let html = '';
-  if (a.concerns.length) html += `<p class="muted small">This one leans on ${esc(joinWords(a.concerns))}.${a.swaps.length ? ' Lighter swaps:' : " I don't have a simple swap that cuts it much."}</p>${ideaButtons(a.swaps, 0)}`;
-  if (a.adds.length) html += `<p class="muted small">${esc([...a.notes, a.gaps.length ? `Light on ${joinWords(a.gaps)}. Add one of these:` : 'Round it out:'].join(' '))}</p>${ideaButtons(a.adds, a.swaps.length)}`;
+  if (alts.length) html += `<p class="muted small">Same menu, a lighter pick next time:</p>${ideaButtons(alts, 0)}`;
+  if (a.concerns.length && (a.swaps.length || !alts.length)) html += `<p class="muted small">This one leans on ${esc(joinWords(a.concerns))}.${a.swaps.length ? ' Other lighter swaps:' : " I don't have a simple swap that cuts it much."}</p>${ideaButtons(a.swaps, alts.length)}`;
+  if (a.adds.length) html += `<p class="muted small">${esc([...a.notes, a.gaps.length ? `Light on ${joinWords(a.gaps)}. Add one of these:` : 'Round it out:'].join(' '))}</p>${ideaButtons(a.adds, alts.length + a.swaps.length)}`;
   return html || '<p class="muted small">This looks fine as it is.</p>';
 }
 
-function renderSwaps(a) {
-  dlg.swaps = [...a.swaps, ...a.adds];
-  $('#fd-swaps').innerHTML = swapHtml(a);
+function renderSwaps(a, alts = []) {
+  dlg.swaps = ideaList(a, alts);
+  $('#fd-swaps').innerHTML = swapHtml(a, alts);
 }
 
 // From the Today list: ideas for something already logged, shown only when its icon is tapped.
 const swapDlg = { swaps: [], meal: null };
-function openEntrySwaps(entry) {
+async function openEntrySwaps(entry) {
   const a = analyze(entry.food, entry.nutrients, mealSum(store.entriesFor(ui.date).filter((x) => x.meal === entry.meal)), dayContext());
-  swapDlg.swaps = [...a.swaps, ...a.adds];
+  swapDlg.swaps = ideaList(a);
   swapDlg.meal = entry.meal;
   $('#sw-title').textContent = entry.food.name;
   $('#sw-body').innerHTML = swapHtml(a);
   $('#swap-dialog').showModal();
+  const alts = await menuAlternatives(entry.food, entry.food.nutrients);
+  if (alts.length && swapDlg.meal === entry.meal && $('#sw-title').textContent === entry.food.name && $('#swap-dialog').open) {
+    swapDlg.swaps = ideaList(a, alts);
+    $('#sw-body').innerHTML = swapHtml(a, alts);
+  }
 }
 
 function dialogQty() {
@@ -401,7 +410,15 @@ function updateFoodPreview() {
   const ideas = dlg.editing ? { flagged: false } : analyze(food, n, sumNutrients([...store.entriesFor(ui.date).filter((x) => x.meal === dlg.meal), { nutrients: n }]), dayContext(n));
   $('#fd-swap-btn').hidden = !ideas.flagged;
   if (!ideas.flagged) $('#fd-swaps').hidden = true;
-  if (!$('#fd-swaps').hidden) renderSwaps(ideas);
+  if (!$('#fd-swaps').hidden) {
+    renderSwaps(ideas, dlg.alts?.food === food ? dlg.alts.list : []);
+    if (dlg.alts?.food !== food) {
+      menuAlternatives(food, food.nutrients).then((list) => {
+        dlg.alts = { food, list };
+        if (dlg.food === food && !$('#fd-swaps').hidden && list.length) updateFoodPreview();
+      });
+    }
+  }
   $('#fd-table').innerHTML = html || '<tr><td>No vitamin or mineral data for this food.</td></tr>';
 }
 
