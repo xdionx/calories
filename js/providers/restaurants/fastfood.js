@@ -97,6 +97,11 @@ export const wendys = withLeftovers(createStaticProvider({
     row("Natural-Cut Fries (medium)", 'Sides', 350, 5, 47, 16, 2.5, 550, 4, 0),
     row("Baconator Fries", 'Sides', 460, 14, 43, 26, 9, 1030, 3, 1),
     row("Chili Cheese Fries", 'Sides', 520, 17, 53, 27, 9, 1270, 6, 3),
+    // Wendy's calls these Seasoned Potatoes (home-style potato wedges). From fastfoodnutrition.org
+    // (credits Wendy's, page dated 12/2021); medium and large list fewer nutrients.
+    row("Seasoned Potato Wedges (small)", 'Sides', 230, 3, 32, 10, 2, 630, 3, 12),
+    row("Seasoned Potato Wedges (medium)", 'Sides', 330, 4, 46, 14, undefined, 900, undefined, undefined),
+    row("Seasoned Potato Wedges (large)", 'Sides', 410, 6, 59, 17, undefined, 1150, undefined, undefined),
     row("Chocolate Frosty (medium)", 'Desserts', 390, 12, 61, 11, 7, 230, 1, 52),
   ],
 }), wendysSample);
