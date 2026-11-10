@@ -361,6 +361,7 @@ function saveFromDialog() {
   } else {
     store.addEntry({ date: ui.date, meal, food: dlg.food, unitIndex, qty });
     ui.addMeal = meal;
+    renderMealTabs();
     toast(`Added to ${meal}`);
   }
   $('#food-dialog').close();
@@ -368,13 +369,18 @@ function saveFromDialog() {
 
 /* ---------------- Add food: tabs ---------------- */
 function renderAddTab() {
-  $('#add-meal').innerHTML = MEALS.map((m) => `<option ${m === ui.addMeal ? 'selected' : ''}>${m}</option>`).join('');
+  renderMealTabs();
   $$('#add-tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === ui.addTab));
   $$('#view-add .tab').forEach((t) => (t.hidden = t.dataset.tab !== ui.addTab));
   if (ui.addTab !== 'scan') stopScanning();
   if (ui.addTab === 'restaurants') renderRestaurants();
   if (ui.addTab === 'mine') renderMine();
   if (ui.addTab === 'search' && !$('#search-input').value) setTimeout(() => $('#search-input').focus(), 50);
+}
+
+function renderMealTabs() {
+  $('#add-meal').innerHTML = MEALS.map((m) =>
+    `<button type="button" role="tab" data-meal="${m}" aria-selected="${m === ui.addMeal}" class="${m === ui.addMeal ? 'active' : ''}">${m}</button>`).join('');
 }
 
 /* Search */
@@ -823,7 +829,12 @@ function bind() {
     ui.addTab = b.dataset.tab;
     renderAddTab();
   });
-  $('#add-meal').onchange = (e) => (ui.addMeal = e.target.value);
+  $('#add-meal').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-meal]');
+    if (!b) return;
+    ui.addMeal = b.dataset.meal;
+    renderMealTabs();
+  });
 
   // Any food list → open dialog
   $('#view-add').addEventListener('click', (e) => {

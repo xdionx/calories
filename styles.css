@@ -119,8 +119,9 @@ main { max-width: 640px; margin: 0 auto; padding: 0 16px; }
 .small-seg button { font-size: 0.8rem; padding: 8px 4px; }
 
 /* Add food */
-.meal-pick { display: flex; align-items: center; gap: 8px; }
-.meal-pick select { width: auto; }
+.meal-pick { display: flex; flex-direction: column; gap: 6px; }
+.meal-tabs button.active { background: var(--accent); color: #fff; }
+@media (prefers-color-scheme: dark) { .meal-tabs button.active { color: #04201c; } }
 .tab { display: flex; flex-direction: column; gap: 10px; }
 .search-row { display: flex; gap: 8px; }
 .search-row input { flex: 1; min-width: 0; }
