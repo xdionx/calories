@@ -40,7 +40,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; }
    Nothing relies on position: fixed, which iOS can misplace after a bounce or
    zoom (the tab bar floated mid-screen on an iPad). */
 body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-main { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: none; padding-bottom: 16px; }
+main { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: none; }
 /* No pinch or double-tap zoom: it fights with scrolling on phones. */
 html { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
@@ -67,7 +67,7 @@ a { color: var(--accent); }
 .icon-btn { width: 40px; height: 40px; border-radius: 999px; border: 0; background: transparent; color: var(--text); font-size: 1.5rem; line-height: 1; cursor: pointer; }
 .icon-btn:hover, .date-label:hover { background: var(--line); }
 
-main { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+main { width: 100%; box-sizing: border-box; max-width: 640px; margin: 0 auto; padding: 0 16px 16px; }
 .view { display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
 
 .card { background: var(--card); border-radius: var(--radius); padding: 16px; border: 1px solid var(--line); }
@@ -582,7 +582,7 @@ label.field-est input { border-style: dashed; }
 .gl-item .what small { color: var(--muted); font-size: 0.78rem; }
 .gl-item.done .what b { text-decoration: line-through; color: var(--muted); }
 .gl-item .cost { color: var(--muted); font-size: 0.9rem; white-space: nowrap; }
-.gl-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 8px; }
+.gl-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 8px; flex-wrap: wrap; }
 .gl-hide { display: flex; flex-direction: row; align-items: center; gap: 6px; font-size: 0.85rem; }
 .gl-empty { color: var(--muted); font-size: 0.9rem; margin: 4px 0; }
 .gl-code { font: 800 2rem/1 var(--font); letter-spacing: 0.2em; text-align: center; padding: 14px; background: var(--line); border-radius: 12px; }
@@ -602,3 +602,31 @@ label.field-est input { border-style: dashed; }
 .gl-cmp td.best { color: var(--accent); font-weight: 700; }
 #gl-compare-dialog, #gl-recipe-dialog, #gl-house-dialog { padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
 #gl-compare-dialog[open], #gl-recipe-dialog[open], #gl-house-dialog[open] { display: flex; flex-direction: column; gap: 12px; }
+
+.swap-ico { flex: none; width: 36px; height: 36px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+.swap-ico:hover, .swap-ico:active { background: var(--accent-soft); color: var(--accent); }
+#swap-dialog { padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
+#swap-dialog[open] { display: flex; flex-direction: column; gap: 12px; }
+#swap-dialog .swap-panel { margin: 0; }
+
+.date-wrap { display: flex; align-items: center; gap: 2px; }
+.date-pick { width: 36px; height: 36px; display: grid; place-items: center; color: var(--muted); }
+#date-dialog { padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
+#date-dialog[open] { display: flex; flex-direction: column; gap: 12px; }
+#date-dialog input { width: 100%; box-sizing: border-box; }
+#dd-text { font-size: 1.4rem; letter-spacing: 0.04em; }
+
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+.cal-dow { font-size: 0.75rem; color: var(--muted); padding: 4px 0; }
+.cal-day { aspect-ratio: 1; max-height: 44px; border: 0; border-radius: 999px; background: none; color: var(--text); font: 500 0.95rem/1 var(--font); cursor: pointer; }
+.cal-day:hover { background: var(--line); }
+.cal-day.today { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.cal-day.sel { background: var(--accent); color: #fff; }
+@media (prefers-color-scheme: dark) { .cal-day.sel { color: #04201c; } }
+
+.dd-field { position: relative; display: block; }
+.dd-ghost { font: inherit; font-size: 1.4rem; letter-spacing: 0.04em; padding: 10px 12px; border: 1px solid transparent; box-sizing: border-box; }
+.dd-field input { position: relative; background: transparent; }
+.dd-ghost { position: absolute; inset: 0; color: var(--muted); pointer-events: none; white-space: pre; display: flex; align-items: center; }
+.dd-ghost i { visibility: hidden; font-style: normal; }

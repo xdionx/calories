@@ -17,7 +17,10 @@
 <body>
   <header class="topbar">
     <button class="icon-btn" id="prev-day" aria-label="Previous day">‹</button>
-    <button class="date-label" id="date-label" aria-label="Jump to today"></button>
+    <div class="date-wrap">
+      <button class="date-label" id="date-label" aria-label="Jump to today"></button>
+      <button class="icon-btn date-pick" id="date-pick" type="button" aria-label="Pick a date"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></button>
+    </div>
     <button class="icon-btn" id="next-day" aria-label="Next day">›</button>
   </header>
 
@@ -428,6 +431,25 @@
   <dialog id="gl-recipe-dialog" class="sheet">
     <div class="sheet-head"><h2>Add a recipe to this week</h2><button class="icon-btn" type="button" id="gl-recipe-close" aria-label="Close">✕</button></div>
     <ul class="food-list" id="gl-recipe-list"></ul>
+  </dialog>
+
+  <!-- Pick a date -->
+  <dialog id="date-dialog" class="sheet">
+    <div class="sheet-head"><h2>Go to a date</h2><button class="icon-btn" type="button" id="dd-close" aria-label="Close">✕</button></div>
+    <label class="field-group"><span class="field-label">Type it (numbers only, the year is optional)</span>
+      <span class="dd-field"><span class="dd-ghost" id="dd-ghost" aria-hidden="true"></span><input id="dd-text" type="text" inputmode="numeric" enterkeyhint="go" pattern="[0-9/]*" autocomplete="off" maxlength="10" placeholder="MM/DD"></span></label>
+    <p class="status error" id="dd-error" hidden></p>
+    <div class="cal" id="dd-cal" aria-label="Calendar">
+      <div class="cal-head"><button class="icon-btn" type="button" id="dd-prev" aria-label="Previous month">‹</button><b id="dd-month"></b><button class="icon-btn" type="button" id="dd-next" aria-label="Next month">›</button></div>
+      <div class="cal-grid" id="dd-grid"></div>
+    </div>
+    <div class="sheet-actions"><button class="btn" type="button" id="dd-today">Today</button><button class="btn primary" type="button" id="dd-go">Go</button></div>
+  </dialog>
+
+  <!-- Healthier ideas for a logged item -->
+  <dialog id="swap-dialog" class="sheet">
+    <div class="sheet-head"><div><h2>Healthier ideas</h2><p class="muted small" id="sw-title"></p></div><button class="icon-btn" type="button" id="sw-close" aria-label="Close">✕</button></div>
+    <div class="swap-panel" id="sw-body"></div>
   </dialog>
 
   <!-- Groceries: compare stores -->

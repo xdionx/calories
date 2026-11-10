@@ -265,6 +265,7 @@ function entryRow(e) {
         <div class="name">${esc(e.food.name)}</div>
         <div class="sub">${esc(e.food.brand ? `${e.food.brand} · ` : '')}${esc(unitText(e))}</div>
       </div>
+      <button type="button" class="swap-ico" data-swap-entry="${e.id}" aria-label="Healthier ideas for ${esc(e.food.name)}" title="Healthier ideas"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14"/><path d="M5 19c3-5 6-8 10-10"/></svg></button>
       <div class="kcal">${round(e.nutrients.kcal)}</div>
     </div>`;
 }
@@ -333,15 +334,31 @@ function openFood(food, { entry = null, meal = ui.addMeal } = {}) {
   $('#food-dialog').showModal();
 }
 
-function renderSwaps(n, heavy) {
-  const swaps = suggestSwaps(dlg.food, n);
-  $('#fd-swaps').innerHTML = `<p class="muted small">This one is high in ${esc(heavy.length > 1 ? heavy.slice(0, -1).join(', ') + ' and ' + heavy.slice(-1) : heavy[0])}. Easy swaps:</p>` + swaps.map((f, i) => {
+function swapHtml(swaps, n, heavy) {
+  const why = heavy.length ? heavy.slice(0, -1).join(', ') + (heavy.length > 1 ? ' and ' : '') + heavy[heavy.length - 1] : '';
+  const intro = heavy.length ? `This one is high in ${esc(why)}. Easy swaps:` : 'This one looks fine as it is. If you want something lighter next time:';
+  return `<p class="muted small">${intro}</p>` + swaps.map((f, i) => {
     const diff = Math.round(n.kcal - f.nutrients.kcal);
     return `<button type="button" class="swap-item" data-swap="${i}">
       <span><b>${esc(f.name)}</b><small>${esc(f.units[0].label)}</small></span>
       <span class="swap-kcal">${Math.round(f.nutrients.kcal)} kcal${diff > 0 ? `<small>${diff} fewer</small>` : ''}</span></button>`;
   }).join('');
-  dlg.swaps = swaps;
+}
+
+function renderSwaps(n, heavy) {
+  dlg.swaps = suggestSwaps(dlg.food, n);
+  $('#fd-swaps').innerHTML = swapHtml(dlg.swaps, n, heavy);
+}
+
+// From the Today list: ideas for something already logged, shown only when its icon is tapped.
+const swapDlg = { swaps: [], meal: null };
+function openEntrySwaps(entry) {
+  const n = entry.nutrients;
+  swapDlg.swaps = suggestSwaps(entry.food, n);
+  swapDlg.meal = entry.meal;
+  $('#sw-title').textContent = entry.food.name;
+  $('#sw-body').innerHTML = swapHtml(swapDlg.swaps, n, whyHeavy(n));
+  $('#swap-dialog').showModal();
 }
 
 function dialogQty() {
@@ -952,6 +969,105 @@ function bind() {
   $('#prev-day').onclick = () => setDate(store.shiftDate(ui.date, -1));
   $('#next-day').onclick = () => setDate(store.shiftDate(ui.date, 1));
   $('#date-label').onclick = () => setDate(store.todayKey());
+  // Date dialog: a month calendar that follows what you type, so picking and typing are one step.
+  const cal = { y: 0, m: 0, sel: null };
+  const keyOf = (y, m, d) => store.todayKey(new Date(y, m, d));
+  const thisYear = () => new Date().getFullYear();
+  // MM/DD alone means this year; a full MM/DD/YYYY overrides it.
+  const parseTyped = (txt) => {
+    const t = txt.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/);
+    if (!t) return null;
+    const [mo, da, yr] = [+t[1], +t[2], t[3] ? +t[3] : thisYear()];
+    const dt = new Date(yr, mo - 1, da);
+    return yr >= 2000 && dt.getMonth() === mo - 1 && dt.getDate() === da ? dt : null;
+  };
+  function drawCal() {
+    const first = new Date(cal.y, cal.m, 1);
+    $('#dd-month').textContent = first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    const days = new Date(cal.y, cal.m + 1, 0).getDate();
+    const today = store.todayKey();
+    let html = ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) => `<span class="cal-dow">${d}</span>`).join('') + '<span></span>'.repeat(first.getDay());
+    for (let d = 1; d <= days; d++) {
+      const k = keyOf(cal.y, cal.m, d);
+      html += `<button type="button" class="cal-day${k === cal.sel ? ' sel' : ''}${k === today ? ' today' : ''}" data-day="${k}">${d}</button>`;
+    }
+    $('#dd-grid').innerHTML = html;
+  }
+  function showMonth(key) {
+    const [y, m] = key.split('-').map(Number);
+    cal.y = y;
+    cal.m = m - 1;
+    cal.sel = key;
+    drawCal();
+  }
+  $('#date-pick').onclick = () => {
+    $('#dd-text').value = '';
+    drawGhost();
+    $('#dd-error').hidden = true;
+    showMonth(ui.date);
+    $('#date-dialog').showModal();
+    $('#dd-text').focus();
+  };
+  $('#dd-close').onclick = () => $('#date-dialog').close();
+  $('#dd-today').onclick = () => {
+    setDate(store.todayKey());
+    $('#date-dialog').close();
+  };
+  const shiftMonth = (n) => {
+    const d = new Date(cal.y, cal.m + n, 1);
+    cal.y = d.getFullYear();
+    cal.m = d.getMonth();
+    drawCal();
+  };
+  $('#dd-prev').onclick = () => shiftMonth(-1);
+  $('#dd-next').onclick = () => shiftMonth(1);
+  $('#dd-grid').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-day]');
+    if (!b) return;
+    setDate(b.dataset.day);
+    $('#date-dialog').close();
+  });
+  // Typing: digits only, slashes added as you go (0412 becomes 04/12, then /2026).
+  $('#dd-text').addEventListener('input', (e) => {
+    const d = e.target.value.replace(/\D/g, '').slice(0, 8);
+    e.target.value = d.length > 4 ? `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}` : d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
+    $('#dd-error').hidden = true;
+    drawGhost();
+    // Show the month being typed as soon as month and a full year are in.
+    const dt = parseTyped(e.target.value);
+    if (dt) return showMonth(store.todayKey(dt));
+    if (d.length >= 6) {
+      const mo = +d.slice(0, 2), yr = +d.slice(4);
+      if (mo >= 1 && mo <= 12 && yr >= 2000) {
+        cal.y = yr;
+        cal.m = mo - 1;
+        cal.sel = null;
+        drawCal();
+      }
+    }
+  });
+  // Faded "/2026" after MM/DD, so the default year is visible but needs no typing.
+  function drawGhost() {
+    const v = $('#dd-text').value;
+    $('#dd-ghost').innerHTML = /^\d{2}\/\d{2}$/.test(v) ? `<i>${v}</i>/${thisYear()}` : '';
+  }
+  const goTyped = () => {
+    const err = $('#dd-error');
+    const dt = parseTyped($('#dd-text').value);
+    if (!dt) {
+      err.textContent = /^\d{1,2}\/\d{1,2}(\/\d{4})?$/.test($('#dd-text').value) ? "That isn't a real date." : 'Type the date as MM/DD or MM/DD/YYYY.';
+      err.hidden = false;
+      return;
+    }
+    setDate(store.todayKey(dt));
+    $('#date-dialog').close();
+  };
+  $('#dd-go').onclick = goTyped;
+  $('#dd-text').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault(); // otherwise Enter lands on the calendar button the dialog hands focus back to
+    goTyped();
+  });
 
   $$('.tabbar button').forEach((b) => (b.onclick = () => showView(b.dataset.nav)));
 
@@ -960,6 +1076,12 @@ function bind() {
     if (add) {
       ui.addMeal = add.dataset.addMeal;
       return showView('add');
+    }
+    const ico = e.target.closest('[data-swap-entry]');
+    if (ico) {
+      const entry = store.entriesFor(ui.date).find((x) => x.id === ico.dataset.swapEntry);
+      if (entry) openEntrySwaps(entry);
+      return;
     }
     const row = e.target.closest('[data-entry]');
     if (row) {
@@ -991,6 +1113,13 @@ function bind() {
     const b = e.target.closest('button[data-swap]');
     if (!b || dlg.editing) return;
     openFood(dlg.swaps[+b.dataset.swap], { meal: dlg.meal });
+  });
+  $('#sw-close').addEventListener('click', () => $('#swap-dialog').close());
+  $('#sw-body').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-swap]');
+    if (!b) return;
+    $('#swap-dialog').close();
+    openFood(swapDlg.swaps[+b.dataset.swap], { meal: swapDlg.meal });
   });
   $('#fd-meal').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-meal]');
