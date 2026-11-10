@@ -45,6 +45,8 @@
         </div>
       </div>
 
+      <div class="card watch" id="watch-card" hidden></div>
+
       <div class="card balance" id="balance-card"></div>
 
       <div class="card weight-row" id="weight-card"></div>
@@ -196,7 +198,10 @@
         <div class="page contents" id="book-contents" hidden>
           <div class="page-top"><button type="button" class="page-link" id="book-close">Close book</button></div>
           <h2 class="page-title">Contents</h2>
+          <label class="gl-hide rx-share" id="rx-share" hidden><input type="checkbox" id="rx-share-cb"> <span id="rx-share-label">Share my recipe book with my household</span></label>
           <ol id="recipe-list" class="toc"></ol>
+          <h3 class="rp-head" id="family-head" hidden>Family recipes</h3>
+          <ol id="family-list" class="toc"></ol>
           <p class="page-empty" id="recipe-empty">No recipes yet. Paste one in (ingredients, directions, and the nutrition line if it has one) and it gets its own page here, with calories per serving worked out for you.</p>
           <button type="button" class="btn primary book-add" id="rx-new">+ Add a recipe</button>
           <div class="page-num">i</div>
@@ -213,6 +218,7 @@
           <div class="btn-row">
             <button class="btn primary grow" id="rd-log">Log a serving</button>
             <button class="btn" id="rd-edit">Edit</button>
+            <button class="btn" id="rd-copy" hidden>Add to my book</button>
           </div>
           <h3 class="rp-head">Ingredients</h3>
           <ul id="rd-ingredients" class="rp-ingredients"></ul>
@@ -483,6 +489,7 @@
       <div class="field-group"><span class="field-label">Meal</span><div class="seg meal-tabs" id="fd-meal" role="tablist" aria-label="Meal"></div></div>
       <div class="fd-kcal"><b id="fd-kcal">0</b> kcal</div>
       <div class="fd-macros" id="fd-macros"></div>
+      <div class="fd-flags" id="fd-flags" hidden></div>
       <button class="btn small swap-btn" type="button" id="fd-swap-btn" hidden>Healthier ideas</button>
       <div class="swap-panel" id="fd-swaps" hidden></div>
       <details class="fd-more">

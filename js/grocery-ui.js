@@ -3,6 +3,7 @@
 // shared storage and sync are in household.js.
 import * as store from './store.js';
 import * as hh from './household.js';
+import * as share from './recipe-share.js';
 import * as sync from './sync.js';
 import { STORES, getStore, mealLines, parseTyped, buildList, STAPLES, deptLabel, compareStores, rowsFor } from './groceries.js';
 
@@ -19,6 +20,7 @@ let hideDone = false;
 export function init(d) {
   deps = { ...deps, ...d };
   hh.init();
+  share.init();
   hh.subscribe(() => {
     if (!$('#view-groceries').hidden) render();
   });
@@ -117,7 +119,7 @@ function addTyped(text) {
 }
 
 function addRecipe(id) {
-  const r = store.getState().recipes.find((x) => x.id === id);
+  const r = store.getState().recipes.find((x) => x.id === id) || share.familyRecipes().find((x) => x.id === id);
   if (!r) return;
   const base = r.servings > 0 ? r.servings : 4;
   hh.put(`meal:${newId()}`, {
@@ -131,8 +133,11 @@ function addRecipe(id) {
 
 function openRecipePicker() {
   const recipes = [...store.getState().recipes].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  $('#gl-recipe-list').innerHTML = recipes.length
-    ? recipes.map((r) => `<li><button type="button" class="food-row" data-recipe="${esc(r.id)}"><span class="grow"><b>${esc(r.name || 'Untitled')}</b><span class="muted small"> ${r.servings ? `${r.servings} servings` : ''}</span></span><span>+</span></button></li>`).join('')
+  const have = new Set(recipes.map((r) => (r.name || '').trim().toLowerCase()));
+  const family = share.familyRecipes().filter((r) => !have.has((r.name || '').trim().toLowerCase())); // already copied into my book
+  const row = (r, by = '') => `<li><button type="button" class="food-row" data-recipe="${esc(r.id)}"><span class="grow"><b>${esc(r.name || 'Untitled')}</b><span class="muted small"> ${by ? `from ${esc(by)} · ` : ''}${r.servings ? `${r.servings} servings` : ''}</span></span><span>+</span></button></li>`;
+  $('#gl-recipe-list').innerHTML = recipes.length || family.length
+    ? recipes.map((r) => row(r)).join('') + family.map((r) => row(r, r.by)).join('')
     : '<li class="gl-empty">Your recipe book is empty. Paste a recipe under Recipes first.</li>';
   $('#gl-recipe-dialog').showModal();
 }
@@ -148,6 +153,7 @@ function renderHouseDialog() {
     body.innerHTML = `<p>You're in <b>${esc(s.household.name)}</b>. Give this code to anyone you shop with. They sign in, open Groceries → Share, and enter it.</p>
       <div class="gl-code">${esc(s.household.code)}</div>
       <button type="button" class="btn" id="gl-copy-code">Copy code</button>
+      <label class="gl-hide"><input type="checkbox" id="gl-share-recipes" ${share.isSharing() ? 'checked' : ''}> Share my recipe book with this household</label>
       <p class="muted small">${s.members.length ? `Members: ${s.members.map((m) => esc(m.email || 'someone')).join(', ')}` : ''}</p>
       <button type="button" class="btn danger" id="gl-leave">Leave household</button>
       <p class="status error" id="gl-house-err" hidden></p>`;
@@ -277,6 +283,11 @@ function bind() {
         showErr(err);
       }
     }
+  });
+  $('#gl-house-body').addEventListener('change', (e) => {
+    if (e.target.id !== 'gl-share-recipes') return;
+    share.setSharing(e.target.checked);
+    deps.toast(e.target.checked ? 'Your recipes are shared' : 'Your recipes are private again');
   });
   $('#gl-house-body').addEventListener('submit', async (e) => {
     e.preventDefault();

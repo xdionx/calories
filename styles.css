@@ -11,6 +11,7 @@
   --fat: #c026d3;
   --caffeine: #8b5a2b;
   --over: #dc2626;
+  --warn: #d97706;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --radius: 14px;
   --tabbar-h: 64px;
@@ -30,6 +31,7 @@
     --fat: #e879f9;
     --caffeine: #d4a373;
     --over: #f87171;
+    --warn: #fbbf24;
     color-scheme: dark;
   }
 }
@@ -631,3 +633,31 @@ label.field-est input { border-style: dashed; }
 .dd-ghost { position: absolute; inset: 0; color: var(--muted); pointer-events: none; white-space: pre; display: flex; align-items: center; }
 .dd-ghost i { visibility: hidden; font-style: normal; }
 .swap-gain { white-space: pre-line; font-size: 0.8rem; color: var(--accent); font-weight: 600; }
+
+/* Keep an eye on: limits to stay under */
+.watch { border-left: 4px solid var(--accent); }
+.watch.warn { border-left-color: var(--warn); }
+.watch.over { border-left-color: var(--over); }
+.watch-msg { margin: 6px 0 10px; font-size: 0.9rem; color: var(--muted); }
+.watch-msg.warn { color: var(--warn); font-weight: 600; }
+.watch-msg.over { color: var(--over); font-weight: 600; }
+.watch-row { margin-bottom: 10px; }
+.watch-row:last-child { margin-bottom: 0; }
+.watch-row .lbl { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px; }
+.watch-row .lbl b { font-variant-numeric: tabular-nums; }
+.watch-row .bar { height: 8px; }
+.watch-row .bar > i { background: var(--accent); }
+.watch-row.warn .bar > i { background: var(--warn); }
+.watch-row.over .bar > i { background: var(--over); }
+.watch-row.warn .lbl b { color: var(--warn); }
+.watch-row.over .lbl b { color: var(--over); }
+.micro-row .pct.warn { color: var(--warn); }
+.micro-row .pct.over { color: var(--over); }
+.fd-flags { display: flex; flex-wrap: wrap; gap: 6px; }
+.fd-flag { font-size: 0.8rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--warn); color: var(--warn); }
+.fd-flag.over { border-color: var(--over); color: var(--over); background: color-mix(in srgb, var(--over) 10%, transparent); }
+.fd-more tr.fl-warn td { color: var(--warn); font-weight: 600; }
+.fd-more tr.fl-over td { color: var(--over); font-weight: 700; }
+
+.rx-share { margin: 6px 0 10px; font-size: 0.9rem; }
+#family-head { margin-top: 16px; }

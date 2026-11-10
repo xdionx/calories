@@ -5,6 +5,8 @@ import { searchFoods, lookupBarcode } from './providers/index.js';
 import { RESTAURANTS, getRestaurant } from './providers/restaurants/index.js';
 import { startScanner } from './scanner.js';
 import { analyze } from './swaps.js';
+import { dayRows, foodFlags, foodStatus, LIMITS } from './watch.js';
+import { menuAlternatives, isRestaurantFood } from './swaps-menu.js';
 import * as groceryUI from './grocery-ui.js';
 import * as sync from './sync.js';
 import * as garmin from './garmin.js';
@@ -126,6 +128,7 @@ function renderToday() {
       </div>`;
   }).join('');
 
+  renderWatch(totals, entries.length > 0);
   renderMicros(totals);
   renderBalance();
   renderWeight();
@@ -281,6 +284,31 @@ function entryRow(e, meal) {
     </div>`;
 }
 
+// Limits to stay under: red when over, amber when close, so the numbers that matter for
+// eating healthier are the first thing seen after the calorie ring.
+function renderWatch(totals, any) {
+  const card = $('#watch-card');
+  const rows = any ? dayRows(totals) : [];
+  card.hidden = !rows.length;
+  if (!rows.length) return;
+  const bad = rows.filter((r) => r.status !== 'ok');
+  const worst = rows.some((r) => r.status === 'over') ? 'over' : bad.length ? 'warn' : 'ok';
+  const say = bad.length
+    ? bad.map((r) => `${r.label.toLowerCase()} is at ${round(r.pct)}% of the daily limit`).join(', ')
+    : 'All four are well under the daily limit so far.';
+  card.className = `card watch ${worst}`;
+  card.innerHTML = `
+    <div class="card-head"><h2>Keep an eye on</h2><span class="muted small">stay under</span></div>
+    <p class="watch-msg ${worst}">${esc(bad.length ? say.charAt(0).toUpperCase() + say.slice(1) + '.' : say)}</p>
+    ${rows.map((r) => `
+      <div class="watch-row ${r.status}">
+        <div class="lbl"><span>${esc(r.label)}</span><b>${formatAmount(r.value, r.unit)} / ${r.limit.toLocaleString()} ${r.unit}</b></div>
+        <div class="bar"><i style="width:${Math.min(r.pct, 100)}%"></i></div>
+      </div>`).join('')}`;
+}
+
+const dayStatus2 = (pct) => (pct > 100 ? 'over' : pct >= 75 ? 'warn' : '');
+
 function renderMicros(totals = store.totalsFor(ui.date)) {
   const list = NUTRIENTS.filter((n) => n.group === ui.microGroup);
   $('#micro-list').innerHTML = list.map((n) => {
@@ -292,8 +320,8 @@ function renderMicros(totals = store.totalsFor(ui.date)) {
       <div class="micro-row">
         <span>${n.label}</span>
         <span class="amt">${v != null ? formatAmount(v, n.unit) : '–'}</span>
-        <span class="pct">${pct != null ? `${round(pct)}%` : ''}</span>
-        <div class="bar"><i style="width:${Math.min(pct || 0, 100)}%;background:${color}"></i></div>
+        <span class="pct ${limitNutrient && pct != null ? dayStatus2(pct) : ''}">${pct != null ? `${round(pct)}%` : ''}</span>
+        <div class="bar"><i style="width:${Math.min(pct || 0, 100)}%;background:${limitNutrient && pct >= 75 && pct <= 100 ? 'var(--warn)' : color}"></i></div>
       </div>`;
   }).join('');
   $$('#micro-tabs button').forEach((b) => b.classList.toggle('active', b.dataset.group === ui.microGroup));
@@ -345,34 +373,43 @@ function openFood(food, { entry = null, meal = ui.addMeal } = {}) {
   $('#food-dialog').showModal();
 }
 
-const ideaButtons = (list, offset, n) => list.map((f, i) => `
+const ideaButtons = (list, offset) => list.map((f, i) => `
     <button type="button" class="swap-item" data-swap="${offset + i}">
       <span><b>${esc(f.name)}</b><small>${esc(f.units[0].label)} · ${Math.round(f.nutrients.kcal)} kcal</small></span>
       <span class="swap-kcal swap-gain">${esc(f.gain.split(' · ').join('\n'))}</span></button>`).join('');
 const joinWords = (w) => (w.length > 1 ? w.slice(0, -1).join(', ') + ' and ' + w[w.length - 1] : w[0] || '');
 
-// Ideas panel: swaps that cut what the item leans on, then additions that round out the meal.
-function swapHtml(a) {
+// Ideas panel, in order: same-menu replacements, lighter swaps, then additions that round out the meal.
+// `alts` are the like-for-like items from the same restaurant's menu (loaded separately).
+const ideaList = (a, alts = []) => [...alts, ...a.swaps, ...a.adds];
+function swapHtml(a, alts = [], food = null) {
   let html = '';
-  if (a.concerns.length) html += `<p class="muted small">This one leans on ${esc(joinWords(a.concerns))}.${a.swaps.length ? ' Lighter swaps:' : " I don't have a simple swap that cuts it much."}</p>${ideaButtons(a.swaps, 0)}`;
-  if (a.adds.length) html += `<p class="muted small">${esc([...a.notes, a.gaps.length ? `Light on ${joinWords(a.gaps)}. Add one of these:` : 'Round it out:'].join(' '))}</p>${ideaButtons(a.adds, a.swaps.length)}`;
+  const outside = food && isRestaurantFood(food);
+  if (alts.length) html += `<p class="muted small">Same menu, a lighter pick next time:</p>${ideaButtons(alts, 0)}`;
+  if ((a.concerns.length || outside) && (a.swaps.length || !alts.length)) html += `<p class="muted small">This one leans on ${esc(joinWords(a.concerns))}.${a.swaps.length ? (outside ? ' Or skip the drive-through, something to make or order instead:' : ' Other lighter swaps:') : " I don't have a simple swap that cuts it much."}</p>${ideaButtons(a.swaps, alts.length)}`;
+  if (a.adds.length) html += `<p class="muted small">${esc([...a.notes, a.gaps.length ? `Light on ${joinWords(a.gaps)}. Add one of these:` : 'Round it out:'].join(' '))}</p>${ideaButtons(a.adds, alts.length + a.swaps.length)}`;
   return html || '<p class="muted small">This looks fine as it is.</p>';
 }
 
-function renderSwaps(a) {
-  dlg.swaps = [...a.swaps, ...a.adds];
-  $('#fd-swaps').innerHTML = swapHtml(a);
+function renderSwaps(a, alts = []) {
+  dlg.swaps = ideaList(a, alts);
+  $('#fd-swaps').innerHTML = swapHtml(a, alts, dlg.food);
 }
 
 // From the Today list: ideas for something already logged, shown only when its icon is tapped.
 const swapDlg = { swaps: [], meal: null };
-function openEntrySwaps(entry) {
+async function openEntrySwaps(entry) {
   const a = analyze(entry.food, entry.nutrients, mealSum(store.entriesFor(ui.date).filter((x) => x.meal === entry.meal)), dayContext());
-  swapDlg.swaps = [...a.swaps, ...a.adds];
+  swapDlg.swaps = ideaList(a);
   swapDlg.meal = entry.meal;
   $('#sw-title').textContent = entry.food.name;
-  $('#sw-body').innerHTML = swapHtml(a);
+  $('#sw-body').innerHTML = swapHtml(a, [], entry.food);
   $('#swap-dialog').showModal();
+  const alts = await menuAlternatives(entry.food, entry.food.nutrients);
+  if (alts.length && swapDlg.meal === entry.meal && $('#sw-title').textContent === entry.food.name && $('#swap-dialog').open) {
+    swapDlg.swaps = ideaList(a, alts);
+    $('#sw-body').innerHTML = swapHtml(a, alts, entry.food);
+  }
 }
 
 function dialogQty() {
@@ -389,19 +426,31 @@ function updateFoodPreview() {
   $('#fd-macros').innerHTML = MACROS.map((m) => `
     <div class="fd-macro" style="--c:${m.color}"><b>${formatAmount(n[m.key] || 0, 'g')}</b><span>${m.label}</span></div>`).join('');
 
+  const limitKeys = new Set(LIMITS.map((l) => l.key));
+  const flags = foodFlags(n);
+  $('#fd-flags').hidden = !flags.length;
+  $('#fd-flags').innerHTML = flags.map((f) => `<span class="fd-flag ${f.status}">${esc(f.label)} ${round(f.pct)}% of daily limit</span>`).join('');
   const groups = [['Details', 'detail'], ['Vitamins', 'vitamin'], ['Minerals', 'mineral'], ['Other', 'other']];
   let html = '';
   for (const [title, g] of groups) {
     const rows = NUTRIENTS.filter((x) => x.group === g && n[x.key] != null);
     if (!rows.length) continue;
     html += `<tr class="group"><td colspan="3">${title}</td></tr>`;
-    html += rows.map((x) => `<tr><td>${x.label}</td><td>${formatAmount(n[x.key], x.unit)}</td><td>${x.dv ? `${round((n[x.key] / x.dv) * 100)}%` : ''}</td></tr>`).join('');
+    html += rows.map((x) => `<tr class="${limitKeys.has(x.key) && x.dv ? 'fl-' + foodStatus((n[x.key] / x.dv) * 100) : ''}"><td>${x.label}</td><td>${formatAmount(n[x.key], x.unit)}</td><td>${x.dv ? `${round((n[x.key] / x.dv) * 100)}%` : ''}</td></tr>`).join('');
   }
   // The swap button only appears for heavier foods, and the ideas only show when asked for.
   const ideas = dlg.editing ? { flagged: false } : analyze(food, n, sumNutrients([...store.entriesFor(ui.date).filter((x) => x.meal === dlg.meal), { nutrients: n }]), dayContext(n));
   $('#fd-swap-btn').hidden = !ideas.flagged;
   if (!ideas.flagged) $('#fd-swaps').hidden = true;
-  if (!$('#fd-swaps').hidden) renderSwaps(ideas);
+  if (!$('#fd-swaps').hidden) {
+    renderSwaps(ideas, dlg.alts?.food === food ? dlg.alts.list : []);
+    if (dlg.alts?.food !== food) {
+      menuAlternatives(food, food.nutrients).then((list) => {
+        dlg.alts = { food, list };
+        if (dlg.food === food && !$('#fd-swaps').hidden && list.length) updateFoodPreview();
+      });
+    }
+  }
   $('#fd-table').innerHTML = html || '<tr><td>No vitamin or mineral data for this food.</td></tr>';
 }
 

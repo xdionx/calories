@@ -133,9 +133,14 @@ export async function joinHousehold(code) {
   adopt(data);
 }
 
+const beforeLeave = new Set();
+/** Run something just before leaving a household (e.g. take my shared recipes back). */
+export const onBeforeLeave = (fn) => beforeLeave.add(fn);
+
 export async function leaveHousehold() {
   const h = state.household;
   if (!h) return;
+  beforeLeave.forEach((fn) => fn());
   if (hasPending()) await syncNow();
   const { error } = await client().rpc('leave_household', { hid: h.id });
   if (error) throw new Error(clean(error));
