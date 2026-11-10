@@ -531,8 +531,9 @@ const STATED_LABELS = [
   ['sugar', /^(?:total\s+)?sugars?$/i],
   ['sodium', /^sodium$/i],
   ['cholesterol', /^cholesterol$/i],
+  ['caffeine', /^caffeine$/i],
 ];
-const LABEL_WORDS = '(calories|cals?|kcals?|energy|proteins?|(?:total\\s+)?carb(?:ohydrate)?s?|sat(?:urated)?\\.?\\s*fats?|(?:total\\s+)?fats?|(?:dietary\\s+)?fib(?:er|re)s?|(?:total\\s+)?sugars?|sodium|cholesterol)';
+const LABEL_WORDS = '(calories|cals?|kcals?|energy|proteins?|(?:total\\s+)?carb(?:ohydrate)?s?|sat(?:urated)?\\.?\\s*fats?|(?:total\\s+)?fats?|(?:dietary\\s+)?fib(?:er|re)s?|(?:total\\s+)?sugars?|sodium|cholesterol|caffeine)';
 const AMOUNT = '(\\d+(?:[.,]\\d+)?)\\s*(kcal|cal|calories|g|grams?|mg|milligrams?)?';
 const LABEL_FIRST = new RegExp(`${LABEL_WORDS}\\s*[:=\\-–]?\\s*${AMOUNT}`, 'gi');
 const AMOUNT_FIRST = new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(kcal|cal|g|grams?|mg)?\\s+(?:of\\s+)?${LABEL_WORDS}\\b`, 'gi');
@@ -561,7 +562,7 @@ export function extractNutrition(text, servings = 1) {
     // Only lines that are about nutrition: inside a Nutrition section, or
     // starting with a label / "per serving", so "1 cup fat-free milk" in the
     // ingredient list is never read as "fat: 1".
-    const looksLikeNutrition = inSection || /^(?:per serving|nutrition|calories|cals?\b|kcal|energy|protein|carb|total|fat|sat|fib|sugar|sodium|cholesterol|\d+\s*(?:kcal|cal(?:ories)?)\b)/i.test(line);
+    const looksLikeNutrition = inSection || /^(?:per serving|nutrition|calories|cals?\b|kcal|energy|protein|carb|total|fat|sat|fib|sugar|sodium|cholesterol|caffeine|\d+\s*(?:kcal|cal(?:ories)?)\b)/i.test(line);
     if (!looksLikeNutrition) continue;
     if (/\b(?:per|whole|entire)\s+recipe\b/i.test(line)) wholeRecipe = true;
     for (const m of line.matchAll(LABEL_FIRST)) {
@@ -582,7 +583,7 @@ export function extractNutrition(text, servings = 1) {
 function toUnit(key, value, unit) {
   if (value == null) return null;
   const u = (unit || '').toLowerCase();
-  if (key === 'sodium' || key === 'cholesterol') return u.startsWith('g') ? value * 1000 : value; // stored in mg
+  if (key === 'sodium' || key === 'cholesterol' || key === 'caffeine') return u.startsWith('g') ? value * 1000 : value; // stored in mg
   if (key !== 'kcal' && u.startsWith('m')) return value / 1000; // mg of a gram nutrient
   return value;
 }

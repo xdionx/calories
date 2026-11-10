@@ -405,6 +405,8 @@ function averages(data, goals) {
     row('Sugar', a('sugar'), 50, 'g', true),
     row('Saturated fat', a('satFat'), NUTRIENT_MAP.satFat?.dv || 20, 'g', true),
     row('Sodium', a('sodium'), NUTRIENT_MAP.sodium.dv, 'mg', true),
+    // Caffeine only when something logged in the range reports it.
+    logged.some((r) => r.totals.caffeine != null) ? row('Caffeine (limit)', a('caffeine'), NUTRIENT_MAP.caffeine.dv, 'mg', true) : '',
   ].join('');
 }
 

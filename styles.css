@@ -9,6 +9,7 @@
   --protein: #2563eb;
   --carbs: #d97706;
   --fat: #c026d3;
+  --caffeine: #8b5a2b;
   --over: #dc2626;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --radius: 14px;
@@ -27,6 +28,7 @@
     --protein: #60a5fa;
     --carbs: #fbbf24;
     --fat: #e879f9;
+    --caffeine: #d4a373;
     --over: #f87171;
     color-scheme: dark;
   }
@@ -166,7 +168,7 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
 /* Scanner */
 .scanner { position: relative; aspect-ratio: 4 / 3; background: #000; border-radius: var(--radius); overflow: hidden; }
 .scanner video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.scan-frame { position: absolute; left: 12%; right: 12%; top: 32%; bottom: 32%; border: 3px solid rgb(255 255 255 / .85); border-radius: 12px; box-shadow: 0 0 0 999px rgb(0 0 0 / .35); pointer-events: none; }
+.scan-frame { position: absolute; left: 14%; right: 14%; top: 14%; bottom: 14%; border: 3px solid rgb(255 255 255 / .85); border-radius: 12px; box-shadow: 0 0 0 999px rgb(0 0 0 / .35); pointer-events: none; }
 .scan-frame::after { content: ''; position: absolute; left: 6px; right: 6px; top: 50%; height: 2px; background: #ef4444; animation: scanline 1.6s ease-in-out infinite; }
 @keyframes scanline { 0%, 100% { transform: translateY(-20px); } 50% { transform: translateY(20px); } }
 .scan-idle { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 12px; text-align: center; color: #fff; background: #0b1311; padding: 20px; }
