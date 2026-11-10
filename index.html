@@ -436,8 +436,8 @@
   <!-- Pick a date -->
   <dialog id="date-dialog" class="sheet">
     <div class="sheet-head"><h2>Go to a date</h2><button class="icon-btn" type="button" id="dd-close" aria-label="Close">✕</button></div>
-    <label class="field-group"><span class="field-label">Type it (numbers only)</span>
-      <input id="dd-text" type="text" inputmode="numeric" pattern="[0-9/]*" autocomplete="off" maxlength="10" placeholder="MM/DD/YYYY"></label>
+    <label class="field-group"><span class="field-label">Type it (numbers only, the year is optional)</span>
+      <span class="dd-field"><span class="dd-ghost" id="dd-ghost" aria-hidden="true"></span><input id="dd-text" type="text" inputmode="numeric" enterkeyhint="go" pattern="[0-9/]*" autocomplete="off" maxlength="10" placeholder="MM/DD"></span></label>
     <p class="status error" id="dd-error" hidden></p>
     <div class="cal" id="dd-cal" aria-label="Calendar">
       <div class="cal-head"><button class="icon-btn" type="button" id="dd-prev" aria-label="Previous month">‹</button><b id="dd-month"></b><button class="icon-btn" type="button" id="dd-next" aria-label="Next month">›</button></div>

@@ -972,10 +972,12 @@ function bind() {
   // Date dialog: a month calendar that follows what you type, so picking and typing are one step.
   const cal = { y: 0, m: 0, sel: null };
   const keyOf = (y, m, d) => store.todayKey(new Date(y, m, d));
+  const thisYear = () => new Date().getFullYear();
+  // MM/DD alone means this year; a full MM/DD/YYYY overrides it.
   const parseTyped = (txt) => {
-    const t = txt.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    const t = txt.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/);
     if (!t) return null;
-    const [mo, da, yr] = [+t[1], +t[2], +t[3]];
+    const [mo, da, yr] = [+t[1], +t[2], t[3] ? +t[3] : thisYear()];
     const dt = new Date(yr, mo - 1, da);
     return yr >= 2000 && dt.getMonth() === mo - 1 && dt.getDate() === da ? dt : null;
   };
@@ -1000,6 +1002,7 @@ function bind() {
   }
   $('#date-pick').onclick = () => {
     $('#dd-text').value = '';
+    drawGhost();
     $('#dd-error').hidden = true;
     showMonth(ui.date);
     $('#date-dialog').showModal();
@@ -1029,6 +1032,7 @@ function bind() {
     const d = e.target.value.replace(/\D/g, '').slice(0, 8);
     e.target.value = d.length > 4 ? `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}` : d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
     $('#dd-error').hidden = true;
+    drawGhost();
     // Show the month being typed as soon as month and a full year are in.
     const dt = parseTyped(e.target.value);
     if (dt) return showMonth(store.todayKey(dt));
@@ -1042,11 +1046,16 @@ function bind() {
       }
     }
   });
+  // Faded "/2026" after MM/DD, so the default year is visible but needs no typing.
+  function drawGhost() {
+    const v = $('#dd-text').value;
+    $('#dd-ghost').innerHTML = /^\d{2}\/\d{2}$/.test(v) ? `<i>${v}</i>/${thisYear()}` : '';
+  }
   const goTyped = () => {
     const err = $('#dd-error');
     const dt = parseTyped($('#dd-text').value);
     if (!dt) {
-      err.textContent = /^\d{1,2}\/\d{1,2}\/\d{4}$/.test($('#dd-text').value) ? "That isn't a real date." : 'Type the date as MM/DD/YYYY.';
+      err.textContent = /^\d{1,2}\/\d{1,2}(\/\d{4})?$/.test($('#dd-text').value) ? "That isn't a real date." : 'Type the date as MM/DD or MM/DD/YYYY.';
       err.hidden = false;
       return;
     }
@@ -1055,7 +1064,9 @@ function bind() {
   };
   $('#dd-go').onclick = goTyped;
   $('#dd-text').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') goTyped();
+    if (e.key !== 'Enter') return;
+    e.preventDefault(); // otherwise Enter lands on the calendar button the dialog hands focus back to
+    goTyped();
   });
 
   $$('.tabbar button').forEach((b) => (b.onclick = () => showView(b.dataset.nav)));

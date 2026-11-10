@@ -624,3 +624,9 @@ label.field-est input { border-style: dashed; }
 .cal-day.today { box-shadow: inset 0 0 0 1.5px var(--accent); }
 .cal-day.sel { background: var(--accent); color: #fff; }
 @media (prefers-color-scheme: dark) { .cal-day.sel { color: #04201c; } }
+
+.dd-field { position: relative; display: block; }
+.dd-ghost { font: inherit; font-size: 1.4rem; letter-spacing: 0.04em; padding: 10px 12px; border: 1px solid transparent; box-sizing: border-box; }
+.dd-field input { position: relative; background: transparent; }
+.dd-ghost { position: absolute; inset: 0; color: var(--muted); pointer-events: none; white-space: pre; display: flex; align-items: center; }
+.dd-ghost i { visibility: hidden; font-style: normal; }
