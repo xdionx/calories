@@ -10,7 +10,7 @@
 //     url: 'https://example.com/menus/burger-king.json',
 //   });
 
-import { SAMPLE_PROVIDERS } from './sample-menus.js';
+import { mcdonalds, wendys, tacobell } from './fastfood.js';
 import { mobettahs } from './mobettahs.js';
 import { jurassictacos } from './jurassictacos.js';
 import { littlecaesars } from './littlecaesars.js';
@@ -23,7 +23,9 @@ export const RESTAURANTS = [
   littlecaesars,
   dominos,
   chickfila,
-  ...SAMPLE_PROVIDERS,
+  mcdonalds,
+  wendys,
+  tacobell,
 ];
 
 export const getRestaurant = (id) => RESTAURANTS.find((r) => r.id === id);
