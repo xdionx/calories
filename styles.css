@@ -602,3 +602,16 @@ label.field-est input { border-style: dashed; }
 .gl-cmp td.best { color: var(--accent); font-weight: 700; }
 #gl-compare-dialog, #gl-recipe-dialog, #gl-house-dialog { padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
 #gl-compare-dialog[open], #gl-recipe-dialog[open], #gl-house-dialog[open] { display: flex; flex-direction: column; gap: 12px; }
+
+.swap-ico { flex: none; width: 36px; height: 36px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+.swap-ico:hover, .swap-ico:active { background: var(--accent-soft); color: var(--accent); }
+#swap-dialog { padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
+#swap-dialog[open] { display: flex; flex-direction: column; gap: 12px; }
+#swap-dialog .swap-panel { margin: 0; }
+
+.date-wrap { display: flex; align-items: center; gap: 2px; }
+.date-pick { width: 36px; height: 36px; display: grid; place-items: center; color: var(--muted); }
+#date-dialog { padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
+#date-dialog[open] { display: flex; flex-direction: column; gap: 12px; }
+#date-dialog input { width: 100%; box-sizing: border-box; }
+#dd-text { font-size: 1.4rem; letter-spacing: 0.04em; }

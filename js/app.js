@@ -265,6 +265,7 @@ function entryRow(e) {
         <div class="name">${esc(e.food.name)}</div>
         <div class="sub">${esc(e.food.brand ? `${e.food.brand} · ` : '')}${esc(unitText(e))}</div>
       </div>
+      <button type="button" class="swap-ico" data-swap-entry="${e.id}" aria-label="Healthier ideas for ${esc(e.food.name)}" title="Healthier ideas"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14"/><path d="M5 19c3-5 6-8 10-10"/></svg></button>
       <div class="kcal">${round(e.nutrients.kcal)}</div>
     </div>`;
 }
@@ -333,15 +334,31 @@ function openFood(food, { entry = null, meal = ui.addMeal } = {}) {
   $('#food-dialog').showModal();
 }
 
-function renderSwaps(n, heavy) {
-  const swaps = suggestSwaps(dlg.food, n);
-  $('#fd-swaps').innerHTML = `<p class="muted small">This one is high in ${esc(heavy.length > 1 ? heavy.slice(0, -1).join(', ') + ' and ' + heavy.slice(-1) : heavy[0])}. Easy swaps:</p>` + swaps.map((f, i) => {
+function swapHtml(swaps, n, heavy) {
+  const why = heavy.length ? heavy.slice(0, -1).join(', ') + (heavy.length > 1 ? ' and ' : '') + heavy[heavy.length - 1] : '';
+  const intro = heavy.length ? `This one is high in ${esc(why)}. Easy swaps:` : 'This one looks fine as it is. If you want something lighter next time:';
+  return `<p class="muted small">${intro}</p>` + swaps.map((f, i) => {
     const diff = Math.round(n.kcal - f.nutrients.kcal);
     return `<button type="button" class="swap-item" data-swap="${i}">
       <span><b>${esc(f.name)}</b><small>${esc(f.units[0].label)}</small></span>
       <span class="swap-kcal">${Math.round(f.nutrients.kcal)} kcal${diff > 0 ? `<small>${diff} fewer</small>` : ''}</span></button>`;
   }).join('');
-  dlg.swaps = swaps;
+}
+
+function renderSwaps(n, heavy) {
+  dlg.swaps = suggestSwaps(dlg.food, n);
+  $('#fd-swaps').innerHTML = swapHtml(dlg.swaps, n, heavy);
+}
+
+// From the Today list: ideas for something already logged, shown only when its icon is tapped.
+const swapDlg = { swaps: [], meal: null };
+function openEntrySwaps(entry) {
+  const n = entry.nutrients;
+  swapDlg.swaps = suggestSwaps(entry.food, n);
+  swapDlg.meal = entry.meal;
+  $('#sw-title').textContent = entry.food.name;
+  $('#sw-body').innerHTML = swapHtml(swapDlg.swaps, n, whyHeavy(n));
+  $('#swap-dialog').showModal();
 }
 
 function dialogQty() {
@@ -952,6 +969,44 @@ function bind() {
   $('#prev-day').onclick = () => setDate(store.shiftDate(ui.date, -1));
   $('#next-day').onclick = () => setDate(store.shiftDate(ui.date, 1));
   $('#date-label').onclick = () => setDate(store.todayKey());
+  $('#date-pick').onclick = () => {
+    $('#dd-text').value = '';
+    $('#dd-error').hidden = true;
+    $('#dd-native').value = ui.date;
+    $('#date-dialog').showModal();
+    $('#dd-text').focus();
+  };
+  $('#dd-close').onclick = () => $('#date-dialog').close();
+  $('#dd-today').onclick = () => {
+    setDate(store.todayKey());
+    $('#date-dialog').close();
+  };
+  $('#dd-native').onchange = (e) => {
+    if (!e.target.value) return;
+    setDate(e.target.value);
+    $('#date-dialog').close();
+  };
+  // Typing: digits only, slashes added as you go (0412 → 04/12, then /2026).
+  $('#dd-text').addEventListener('input', (e) => {
+    const d = e.target.value.replace(/\D/g, '').slice(0, 8);
+    e.target.value = d.length > 4 ? `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}` : d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
+    $('#dd-error').hidden = true;
+  });
+  const goTyped = () => {
+    const m = $('#dd-text').value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    const err = $('#dd-error');
+    const bad = (t) => ((err.textContent = t), (err.hidden = false));
+    if (!m) return bad('Type the date as MM/DD/YYYY.');
+    const [mo, da, yr] = [+m[1], +m[2], +m[3]];
+    const dt = new Date(yr, mo - 1, da);
+    if (yr < 2000 || dt.getMonth() !== mo - 1 || dt.getDate() !== da) return bad("That isn't a real date.");
+    setDate(store.todayKey(dt));
+    $('#date-dialog').close();
+  };
+  $('#dd-go').onclick = goTyped;
+  $('#dd-text').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') goTyped();
+  });
 
   $$('.tabbar button').forEach((b) => (b.onclick = () => showView(b.dataset.nav)));
 
@@ -960,6 +1015,12 @@ function bind() {
     if (add) {
       ui.addMeal = add.dataset.addMeal;
       return showView('add');
+    }
+    const ico = e.target.closest('[data-swap-entry]');
+    if (ico) {
+      const entry = store.entriesFor(ui.date).find((x) => x.id === ico.dataset.swapEntry);
+      if (entry) openEntrySwaps(entry);
+      return;
     }
     const row = e.target.closest('[data-entry]');
     if (row) {
@@ -991,6 +1052,13 @@ function bind() {
     const b = e.target.closest('button[data-swap]');
     if (!b || dlg.editing) return;
     openFood(dlg.swaps[+b.dataset.swap], { meal: dlg.meal });
+  });
+  $('#sw-close').addEventListener('click', () => $('#swap-dialog').close());
+  $('#sw-body').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-swap]');
+    if (!b) return;
+    $('#swap-dialog').close();
+    openFood(swapDlg.swaps[+b.dataset.swap], { meal: swapDlg.meal });
   });
   $('#fd-meal').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-meal]');
