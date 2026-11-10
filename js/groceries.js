@@ -40,13 +40,13 @@ export const STORES = [
 export const getStore = (id) => STORES.find((s) => s.id === id) || STORES[0];
 
 /** Price of every row at every store: [{ store, total, prices: { key: price } }], cheapest first. */
-export function compareStores(lines, realByStore = {}) {
+export function compareStores(lines) {
   const rows = mergeLines(lines);
   return STORES.map((store) => {
     const prices = {};
     let total = 0;
     for (const r of rows) {
-      prices[r.key] = estimate(r, store.id, realByStore[store.id]?.get(r.key)).price;
+      prices[r.key] = estimate(r, store.id).price;
       total += prices[r.key];
     }
     return { store, total: Math.round(total * 100) / 100, prices };
@@ -241,7 +241,7 @@ export function mergeLines(lines) {
 }
 
 /** Estimated cost of a merged row: whole packages needed times the package price. */
-export function estimate(row, store, real = null) {
+export function estimate(row, store) {
   const d = describe(row.name);
   const f = getStore(store).factor;
   let packages = 1;
@@ -257,10 +257,8 @@ export function estimate(row, store, real = null) {
     const each = need.ea || 0;
     if (each > 0) packages = Math.max(1, Math.ceil(each / d.pkg - 0.05));
   }
-  // A price read from the store's own site replaces the typical price (and its store factor).
-  const unit = real && Number.isFinite(real.price) ? real.price : d.price * f;
-  const price = Math.round(packages * unit * 100) / 100;
-  return { price, packages, known: d.known, real: Boolean(real && Number.isFinite(real.price)) };
+  const price = Math.round(packages * d.price * f * 100) / 100;
+  return { price, packages, known: d.known };
 }
 
 /**
@@ -268,19 +266,17 @@ export function estimate(row, store, real = null) {
  * lines: every needed line (from meals and typed items); have: Set of keys already checked off.
  * Returns { sections: [{ dept, label, total, items: [...] }], total }.
  */
-export function buildList(lines, { store = 'typical', have = new Set(), real = new Map() } = {}) {
+export function buildList(lines, { store = 'typical', have = new Set() } = {}) {
   const profile = getStore(store);
   const rows = mergeLines(lines).map((row) => {
     const d = describe(row.name);
-    const found = real.get(row.key) || null;
-    const est = estimate(row, store, found);
+    const est = estimate(row, store);
     return {
       ...row,
-      real: est.real ? found : null,
       dept: d.dept,
       qtyText: row.parts.map((p) => formatQty(p.qty, p.unit)).filter(Boolean).join(' + '),
       price: est.price,
-      guess: !est.known && !est.real,
+      guess: !est.known,
       checked: have.has(row.key),
     };
   });
@@ -296,78 +292,3 @@ export function buildList(lines, { store = 'typical', have = new Set(), real = n
 }
 
 export const STAPLES = ['Milk', 'Eggs', 'Greek yogurt', 'Bread', 'Bananas', 'Apples', 'Butter', 'Cheese', 'Chicken breast', 'Rice', 'Spinach', 'Strawberries'];
-
-/* ---------------- Real prices from the store's own site ---------------- */
-// The app can't read walmart.com itself (browsers block one site from reading
-// another, and Walmart blocks automated visits). So the app writes a small
-// script for the person to run in their own browser on walmart.com, where the
-// page already knows their store. The script looks each item up like a person
-// would, and copies the results to paste back into the app.
-
-/** Script text to paste into the browser console on walmart.com. items: [{ key, name }] */
-export function walmartScript(items) {
-  const list = JSON.stringify(items.map((i) => [i.key, i.name]));
-  return `(async () => {
-  const items = ${list};
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const out = {};
-  for (const [key, q] of items) {
-    out[key] = [];
-    try {
-      const html = await (await fetch('/search?q=' + encodeURIComponent(q))).text();
-      const ids = [...new Set([...html.matchAll(/\\/ip\\/(?:[^\\/"?]+\\/)?(\\d{6,})/g)].map((m) => m[1]))].slice(0, 3);
-      for (const id of ids) {
-        const page = await (await fetch('/ip/' + id)).text();
-        const m = page.match(/id="__NEXT_DATA__"[^>]*>(.*?)<\\/script>/s);
-        if (!m) continue;
-        const p = JSON.parse(m[1])?.props?.pageProps?.initialData?.data?.product;
-        if (!p) continue;
-        const cur = p.priceInfo?.currentPrice || {};
-        const price = typeof cur.price === 'number' ? cur.price : parseFloat(String(cur.priceString || '').replace(/[^0-9.]/g, ''));
-        const a = page.replace(/<[^>]+>/g, ' ').match(/Aisle\\s?([A-Z]?\\d{1,3})/);
-        out[key].push({ id, name: p.name, price, stock: p.availabilityStatus, aisle: a ? a[1] : null });
-        await sleep(600);
-      }
-    } catch (e) {}
-    console.log(key, out[key].length);
-    await sleep(800);
-  }
-  const text = JSON.stringify({ store: 'walmart-draper', at: Date.now(), items: out });
-  try { copy(text); console.log('Copied. Paste it into the app.'); } catch (e) { console.log(text); }
-})();`;
-}
-
-const wordsOf = (s) => keyOf(s).split(' ').filter(Boolean);
-
-/**
- * Reads what the script copied. Returns { found: { key: { price, aisle, name, url, stock } }, missed: [keys] }.
- * Of the top matches, prefers in-stock ones whose name shares the most words with the item.
- */
-export function parseWalmartResults(text) {
-  let data;
-  try {
-    data = JSON.parse(String(text).trim());
-  } catch {
-    throw new Error("That doesn't look like the copied results. Run the script again and paste everything it copied.");
-  }
-  if (!data || typeof data.items !== 'object') throw new Error('No items in what you pasted.');
-  const found = {};
-  const missed = [];
-  for (const [key, cands] of Object.entries(data.items)) {
-    const want = wordsOf(key);
-    const ok = (Array.isArray(cands) ? cands : []).filter((c) => Number.isFinite(c.price) && c.price > 0);
-    if (!ok.length) {
-      missed.push(key);
-      continue;
-    }
-    const score = (c) => {
-      const have = new Set(wordsOf(c.name || ''));
-      const hit = want.filter((w) => have.has(w)).length;
-      const inStock = !c.stock || /in_stock|in stock/i.test(c.stock) ? 1 : 0;
-      return inStock * 10 + hit;
-    };
-    const best = [...ok].sort((a, b) => score(b) - score(a))[0];
-    found[key] = { price: best.price, aisle: best.aisle || null, name: best.name || key, url: `https://www.walmart.com/ip/${best.id}`, stock: best.stock || '', at: data.at || Date.now() };
-  }
-  return { found, missed };
-}

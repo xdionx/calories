@@ -152,7 +152,6 @@
         <span class="field-label">Store</span>
         <div class="gl-chips" id="gl-stores"></div>
         <p class="muted small" id="gl-store-note"></p>
-        <button class="btn small" type="button" id="gl-wm-btn" hidden>Get real Walmart prices</button>
       </div>
       <div class="card gl-card">
         <div class="card-head"><h2>This week's meals</h2><button class="btn small" type="button" id="gl-add-meal">+ Add a recipe</button></div>
@@ -429,21 +428,6 @@
   <dialog id="gl-recipe-dialog" class="sheet">
     <div class="sheet-head"><h2>Add a recipe to this week</h2><button class="icon-btn" type="button" id="gl-recipe-close" aria-label="Close">✕</button></div>
     <ul class="food-list" id="gl-recipe-list"></ul>
-  </dialog>
-
-  <!-- Groceries: real Walmart prices -->
-  <dialog id="gl-wm-dialog" class="sheet">
-    <div class="sheet-head"><h2>Real Walmart prices</h2><button class="icon-btn" type="button" id="gl-wm-close" aria-label="Close">✕</button></div>
-    <p class="muted small">The app can't read walmart.com itself: browsers stop one site reading another, and Walmart blocks automated visits. So the app writes a script for you to run in your own browser on walmart.com, where your store (Draper) is already chosen. It looks each item up the way you would, a few seconds apart, and copies the results. It's best on a computer.</p>
-    <ol class="gl-steps">
-      <li><button class="btn small" type="button" id="gl-wm-copy">Copy the script</button></li>
-      <li>Open <a href="https://www.walmart.com" target="_blank" rel="noopener">walmart.com</a> in a new tab and make sure it shows your Draper store.</li>
-      <li>Open the browser console (Ctrl+Shift+J, or Cmd+Option+J on a Mac), paste the script and press Enter. Leave the tab open until it says "Copied" (about a minute for 20 items).</li>
-      <li>Paste what it copied here:<textarea id="gl-wm-paste" rows="4" placeholder="Paste the copied results"></textarea></li>
-    </ol>
-    <button class="btn primary" type="button" id="gl-wm-import">Use these prices</button>
-    <p class="status" id="gl-wm-status" hidden></p>
-    <p class="muted small">Walmart can change its pages, so this may stop working. It's one person's shopping list at a gentle pace, but it is automated, so use it sparingly. Whatever it can't find stays an estimate.</p>
   </dialog>
 
   <!-- Groceries: compare stores -->

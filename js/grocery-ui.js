@@ -4,7 +4,7 @@
 import * as store from './store.js';
 import * as hh from './household.js';
 import * as sync from './sync.js';
-import { STORES, getStore, mealLines, parseTyped, buildList, STAPLES, deptLabel, compareStores, rowsFor, walmartScript, parseWalmartResults } from './groceries.js';
+import { STORES, getStore, mealLines, parseTyped, buildList, STAPLES, deptLabel, compareStores, rowsFor } from './groceries.js';
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -28,7 +28,6 @@ export function init(d) {
   bind();
 }
 
-const realPrices = () => new Map(hh.list('wm:').map((r) => [r.id.slice(3), r]));
 const currentStore = () => hh.get('setting:store')?.store || DEFAULT_STORE;
 
 /* ---------------- Drawing ---------------- */
@@ -59,12 +58,7 @@ function renderHeader() {
 
   const active = currentStore();
   $('#gl-stores').innerHTML = STORES.map((x) => `<button type="button" class="gl-chip ${x.id === active ? 'active' : ''}" data-store="${x.id}">${esc(x.short || x.name)}</button>`).join('');
-  const real = active === 'walmart-draper' ? realPrices() : new Map();
-  const when = [...real.values()].map((r) => r.at).filter(Boolean).sort().pop();
-  $('#gl-store-note').textContent = real.size
-    ? `${getStore(active).name}. ${real.size} item${real.size === 1 ? '' : 's'} priced from walmart.com on ${new Date(when).toLocaleDateString()}; the rest are estimates.`
-    : `${getStore(active).name}. Department order follows a typical layout; prices are estimates.`;
-  $('#gl-wm-btn').hidden = active !== 'walmart-draper';
+  $('#gl-store-note').textContent = `${getStore(active).name}. Department order follows a typical layout; prices are estimates.`;
 }
 
 function renderMeals() {
@@ -90,7 +84,7 @@ function neededLines() {
 function renderList() {
   const storeId = currentStore();
   const have = new Set(hh.list('have:').map((h) => h.key));
-  const list = buildList(neededLines(), { store: storeId, have, real: storeId === 'walmart-draper' ? realPrices() : new Map() });
+  const list = buildList(neededLines(), { store: storeId, have });
   $('#gl-total').textContent = list.count ? `${money(list.left)} left · ${money(list.total)} total` : '';
   if (!list.count) {
     $('#gl-list').innerHTML = '<p class="gl-empty">Nothing on the list yet.</p>';
@@ -105,7 +99,7 @@ function renderList() {
       ${items.map((i) => `
         <div class="gl-item ${i.checked ? 'done' : ''}" data-key="${esc(i.key)}">
           <button type="button" class="tick" data-tick aria-label="Got it">✓</button>
-          <div class="what"><b>${esc(i.name)}</b><small>${[i.qtyText, i.real ? `${i.real.aisle ? `Aisle ${esc(i.real.aisle)} · ` : ''}<a href="${esc(i.real.url)}" target="_blank" rel="noopener">${esc(i.real.name)}</a>` : '', i.sources.length ? `for ${esc(i.sources.join(', '))}` : '', i.by && !i.sources.length ? `added by ${esc(i.by)}` : ''].filter(Boolean).join(' · ')}</small></div>
+          <div class="what"><b>${esc(i.name)}</b><small>${[i.qtyText, i.sources.length ? `for ${esc(i.sources.join(', '))}` : '', i.by && !i.sources.length ? `added by ${esc(i.by)}` : ''].filter(Boolean).join(' · ')}</small></div>
           <span class="cost">${i.guess ? '~' : ''}${money(i.price)}</span>
           ${i.manualIds.length ? `<button type="button" class="gl-x" data-remove-item="${esc(i.manualIds.join(','))}" aria-label="Remove">✕</button>` : ''}
         </div>`).join('')}
@@ -235,7 +229,7 @@ function bind() {
     const lines = neededLines();
     const rows = rowsFor(lines);
     if (!rows.length) return deps.toast('Add some items first');
-    const cmp = compareStores(lines, { 'walmart-draper': realPrices() });
+    const cmp = compareStores(lines);
     const cheapest = cmp[0].total;
     $('#gl-compare-body').innerHTML = `
       <div class="gl-cmp-totals">${cmp.map((c, i) => `<div class="${i === 0 ? 'best' : ''}"><b>${esc(c.store.short)}</b><span>${money(c.total)}</span><small>${i === 0 ? 'cheapest' : `+${money(c.total - cheapest)}`}</small></div>`).join('')}</div>
@@ -249,36 +243,6 @@ function bind() {
     $('#gl-compare-dialog').showModal();
   };
   $('#gl-compare-close').onclick = () => $('#gl-compare-dialog').close();
-  $('#gl-wm-btn').onclick = () => {
-    $('#gl-wm-status').hidden = true;
-    $('#gl-wm-paste').value = '';
-    $('#gl-wm-dialog').showModal();
-  };
-  $('#gl-wm-close').onclick = () => $('#gl-wm-dialog').close();
-  $('#gl-wm-copy').onclick = async () => {
-    const rows = rowsFor(neededLines()).slice(0, 60).map((r) => ({ key: r.key, name: r.name }));
-    if (!rows.length) return deps.toast('Add some items first');
-    try {
-      await navigator.clipboard.writeText(walmartScript(rows));
-      deps.toast(`Script copied for ${rows.length} items`);
-    } catch {
-      deps.toast("Couldn't copy. Allow clipboard access and try again.");
-    }
-  };
-  $('#gl-wm-import').onclick = () => {
-    const status = $('#gl-wm-status');
-    status.hidden = false;
-    try {
-      const { found, missed } = parseWalmartResults($('#gl-wm-paste').value);
-      const keys = Object.keys(found);
-      for (const k of keys) hh.put(`wm:${k}`, found[k]);
-      status.className = 'status ok';
-      status.textContent = `Saved ${keys.length} price${keys.length === 1 ? '' : 's'}.${missed.length ? ` No match for ${missed.join(', ')}; those stay estimates.` : ''}`;
-    } catch (e) {
-      status.className = 'status error';
-      status.textContent = e.message;
-    }
-  };
   $('#gl-hide-done').onchange = (e) => {
     hideDone = e.target.checked;
     renderList();
