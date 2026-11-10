@@ -1,0 +1,152 @@
+/* Looks. Each one sets the colour variables, then a few shape and background
+   rules. Chosen in Settings, stored per device as ct.theme and applied to
+   <html data-theme="...">. With no theme the app follows light/dark. */
+:root[data-theme] { --c-protein: var(--protein); --c-weight: var(--accent); }
+:root[data-theme] .card { box-shadow: none; }
+:root[data-theme] .ring-num, :root[data-theme] h2 { font-family: var(--head, var(--font)); }
+
+/* ---------- 1. Legal pad ---------- */
+:root[data-theme="legal"] {
+  --bg: #fff3a6; --card: rgb(255 249 207 / .85); --text: #1b2a4a; --muted: #3b4a6b; --line: #8fb6df;
+  --accent: #b3122f; --accent-soft: #fde1e5; --protein: #1d4ed8; --carbs: #b45309; --fat: #9d174d; --over: #b3122f; --warn: #b45309;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; --radius: 4px; --on-accent: #fff; color-scheme: light;
+}
+:root[data-theme="legal"] body {
+  background-image: linear-gradient(90deg, transparent 22px, #d9546b 22px, #d9546b 24px, transparent 24px, transparent 27px, #d9546b 27px, #d9546b 29px, transparent 29px),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 31px, #8fb6df 31px, #8fb6df 32px);
+}
+:root[data-theme="legal"] .card { border: 0; border-bottom: 2px solid #c9b866; }
+:root[data-theme="legal"] .tabbar { background: #fff9cf; border-top: 2px solid #c9b866; }
+:root[data-theme="legal"] .ring-fill { stroke: #b3122f; }
+:root[data-theme="legal"] .ring-fill.over { stroke: #6b0a1c; }
+
+/* ---------- 2. Steno pad ---------- */
+:root[data-theme="steno"] {
+  --bg: #e4efdc; --card: rgb(228 239 220 / .88); --text: #1f2d24; --muted: #3d5246; --line: #7fa88a;
+  --accent: #2f5a3f; --accent-soft: #c9dcc0; --protein: #1d4ed8; --carbs: #92400e; --fat: #86198f; --over: #a32a22; --warn: #92400e;
+  --font: ui-monospace, "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace; --radius: 2px; --on-accent: #fff; color-scheme: light;
+}
+:root[data-theme="steno"] body { background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 29px, #7fa88a 29px, #7fa88a 30px); }
+:root[data-theme="steno"] .topbar, :root[data-theme="steno"] .tabbar { background: #c9dcc0; border-bottom: 3px double #5f8a6c; border-top: 0; }
+:root[data-theme="steno"] .tabbar { border-top: 3px double #5f8a6c; border-bottom: 0; }
+:root[data-theme="steno"] .card { border: 0; border-bottom: 1px solid #7fa88a; }
+
+/* ---------- 3. Dot-grid journal ---------- */
+:root[data-theme="dots"] {
+  --bg: #f7f1e3; --card: rgb(247 241 227 / .9); --text: #26241f; --muted: #5a5446; --line: #d9ceb3;
+  --accent: #b4452e; --accent-soft: #f3dcd3; --protein: #2f5d8a; --carbs: #8a5a00; --fat: #7a3b69; --over: #a8321c; --warn: #8a5a00;
+  --font: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif; --head: "Newsreader", Georgia, "Times New Roman", serif; --radius: 6px; --on-accent: #fff; color-scheme: light;
+}
+:root[data-theme="dots"] body { background-image: radial-gradient(circle, #b9ad92 1.1px, transparent 1.3px); background-size: 24px 24px; background-position: 12px 12px; }
+:root[data-theme="dots"] .card { border: 0; border-top: 2px solid #26241f; border-radius: 0; }
+:root[data-theme="dots"] .tabbar { background: #f2ead7; }
+:root[data-theme="dots"] .bar { height: 5px; }
+
+/* ---------- 4. Composition book ---------- */
+:root[data-theme="comp"] {
+  --bg: #fdfdfb; --card: rgb(253 253 251 / .92); --text: #141414; --muted: #3a3a3a; --line: #b7c9e2;
+  --accent: #141414; --accent-soft: #e6e6e6; --protein: #1d4ed8; --carbs: #92400e; --fat: #86198f; --over: #b0141f; --warn: #92400e;
+  --font: "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif; --radius: 0; --on-accent: #fff; color-scheme: light;
+}
+:root[data-theme="comp"] body { background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 31px, #b7c9e2 31px, #b7c9e2 32px); }
+:root[data-theme="comp"] .topbar { background: radial-gradient(ellipse 60px 22px at 12% 30%, #ececec, transparent 70%), radial-gradient(ellipse 90px 26px at 50% 80%, #cfcfcf, transparent 70%), radial-gradient(ellipse 70px 20px at 88% 24%, #f0f0f0, transparent 70%), #141414; backdrop-filter: none; color: #141414; }
+:root[data-theme="comp"] .topbar .date-label { background: #fdfdfb; border: 3px solid #141414; color: #141414; }
+:root[data-theme="comp"] .topbar .icon-btn { background: #fdfdfb; color: #141414; }
+:root[data-theme="comp"] .card { border: 0; border-bottom: 2px solid #141414; }
+:root[data-theme="comp"] .card-head h2 { display: inline-block; background: #141414; color: #fdfdfb; padding: 3px 10px; font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; }
+:root[data-theme="comp"] .tabbar { background: #141414; border: 0; }
+:root[data-theme="comp"] .tabbar button { color: #bdbdbd; }
+:root[data-theme="comp"] .tabbar button.active { color: #fff; }
+
+/* ---------- 5. Engineer's graph pad ---------- */
+:root[data-theme="graph"] {
+  --bg: #eef4ea; --card: #f7faf5; --text: #22272b; --muted: #4a5258; --line: #b9cfb8;
+  --accent: #22272b; --accent-soft: #dfe9db; --protein: #1d4ed8; --carbs: #92400e; --fat: #86198f; --over: #a3121d; --warn: #92400e;
+  --font: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; --radius: 0; --on-accent: #f7faf5; color-scheme: light;
+}
+:root[data-theme="graph"] body { background-image: linear-gradient(#b9cfb8 1px, transparent 1px), linear-gradient(90deg, #b9cfb8 1px, transparent 1px), linear-gradient(#d3e2d0 1px, transparent 1px), linear-gradient(90deg, #d3e2d0 1px, transparent 1px); background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px; }
+:root[data-theme="graph"] .card { border: 2px solid #22272b; }
+:root[data-theme="graph"] .card-head h2 { text-transform: uppercase; letter-spacing: .1em; font-size: .8rem; }
+:root[data-theme="graph"] .topbar { background: #f7faf5; border-bottom: 2px solid #22272b; backdrop-filter: none; }
+:root[data-theme="graph"] .tabbar { border-top: 2px solid #22272b; }
+:root[data-theme="graph"] .bar { border: 1.5px solid #22272b; background: #fff; border-radius: 0; }
+:root[data-theme="graph"] .bar > i { border-radius: 0; }
+
+/* ---------- 6. Night dashboard ---------- */
+:root[data-theme="night"] {
+  --bg: #0b111c; --card: #141c2b; --text: #e8eef7; --muted: #8fa0ba; --line: #243049;
+  --accent: #38d6a0; --accent-soft: #12332d; --protein: #6ea8ff; --carbs: #ffc46b; --fat: #c58bff; --over: #ff5d6c; --warn: #ffb347;
+  --font: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif; --radius: 20px; --on-accent: #052018; color-scheme: dark;
+}
+:root[data-theme="night"] .card { border-color: #243049; }
+:root[data-theme="night"] .ring-fill { filter: drop-shadow(0 0 4px rgb(56 214 160 / .5)); }
+
+/* ---------- 7. Swiss editorial ---------- */
+:root[data-theme="swiss"] {
+  --bg: #f6f4ef; --card: transparent; --text: #111; --muted: #6a6a6a; --line: #ddd;
+  --accent: #e5342b; --accent-soft: #ffe1de; --protein: #111; --carbs: #111; --fat: #111; --over: #e5342b; --warn: #b88a00;
+  --font: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; --radius: 0; --on-accent: #fff; color-scheme: light;
+}
+:root[data-theme="swiss"] .card { border: 0; border-top: 1px solid #111; padding-left: 0; padding-right: 0; }
+:root[data-theme="swiss"] .card-head h2 { font-size: 1.25rem; letter-spacing: -.02em; }
+:root[data-theme="swiss"] .ring-num { font-size: 2.2rem; font-weight: 800; letter-spacing: -.04em; }
+:root[data-theme="swiss"] .topbar { background: #f6f4ef; border-bottom: 4px solid #111; backdrop-filter: none; }
+:root[data-theme="swiss"] .tabbar { background: #fff; border-top: 4px solid #111; }
+:root[data-theme="swiss"] .tabbar button.active { color: #111; font-weight: 800; }
+:root[data-theme="swiss"] .bar { height: 5px; border-radius: 0; background: #ddd; }
+:root[data-theme="swiss"] .bar > i, :root[data-theme="swiss"] .ring-fill { background: #111; stroke: #111; }
+:root[data-theme="swiss"] .ring-fill.over { stroke: #e5342b; }
+:root[data-theme="swiss"] .watch { border-left: 0; }
+:root[data-theme="swiss"] .watch-row.over { background: #e5342b; color: #fff; padding: 4px 8px; margin-left: -8px; margin-right: -8px; }
+:root[data-theme="swiss"] .watch-row.over .lbl b { color: #fff; }
+:root[data-theme="swiss"] .watch-row.warn { background: #ffd400; color: #111; padding: 4px 8px; margin-left: -8px; margin-right: -8px; }
+:root[data-theme="swiss"] .watch-row.warn .lbl b { color: #111; }
+
+/* ---------- 8. Soft pastel cards ---------- */
+:root[data-theme="soft"] {
+  --bg: #f4f0fb; --card: #ffffff; --text: #3b3450; --muted: #8a8399; --line: #ece6f6;
+  --accent: #6a5acd; --accent-soft: #e6e0fb; --protein: #6a5acd; --carbs: #3d8bd9; --fat: #9b6fd6; --over: #e5484d; --warn: #d98a0b;
+  --font: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif; --radius: 24px; --on-accent: #fff; color-scheme: light;
+}
+:root[data-theme="soft"] .card { border: 0; box-shadow: 0 8px 22px rgb(120 100 160 / .14); }
+:root[data-theme="soft"] .card.summary { background: linear-gradient(135deg, #d9ccff, #bfe3ff); }
+:root[data-theme="soft"] .tabbar { border: 0; border-radius: 26px 26px 0 0; box-shadow: 0 -6px 20px rgb(120 100 160 / .15); background: rgb(255 255 255 / .94); }
+:root[data-theme="soft"] .bar { height: 8px; }
+:root[data-theme="soft"] .btn { border-radius: 16px; }
+
+/* ---------- 9. Terminal ---------- */
+:root[data-theme="term"] {
+  --bg: #071007; --card: #0a140c; --text: #7dff9b; --muted: #4fa866; --line: #1d3a24;
+  --accent: #7dff9b; --accent-soft: #123a1c; --protein: #7dff9b; --carbs: #ffd35c; --fat: #7dd3ff; --over: #ff5f6d; --warn: #ffd35c;
+  --font: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; --radius: 0; --on-accent: #071007; color-scheme: dark;
+}
+:root[data-theme="term"] .card { border: 1px solid #1d3a24; }
+:root[data-theme="term"] .card-head h2::before { content: "## "; }
+:root[data-theme="term"] .ring-num { text-shadow: 0 0 12px rgb(125 255 155 / .5); }
+:root[data-theme="term"] .bar { border-radius: 0; height: 8px; background: repeating-linear-gradient(90deg, #14271a 0 6px, transparent 6px 8px); }
+:root[data-theme="term"] .bar > i { border-radius: 0; background: repeating-linear-gradient(90deg, currentColor 0 6px, transparent 6px 8px); }
+:root[data-theme="term"] .tabbar button.active { background: #7dff9b; color: #071007; }
+
+/* ---------- 10. Neo-brutalist ---------- */
+:root[data-theme="brut"] {
+  --bg: #fff4d6; --card: #ffffff; --text: #111; --muted: #444; --line: #111;
+  --accent: #ff8fab; --accent-soft: #ffd1dc; --protein: #0e7490; --carbs: #b45309; --fat: #6d28d9; --over: #ff3b30; --warn: #d97706;
+  --font: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif; --radius: 0; --on-accent: #111; color-scheme: light;
+}
+:root[data-theme="brut"] .card { border: 3px solid #111; box-shadow: 6px 6px 0 #111; }
+:root[data-theme="brut"] .btn { border: 3px solid #111; box-shadow: 3px 3px 0 #111; border-radius: 0; }
+:root[data-theme="brut"] .btn.primary { border-color: #111; }
+:root[data-theme="brut"] input, :root[data-theme="brut"] select { border: 3px solid #111; border-radius: 0; }
+:root[data-theme="brut"] .bar { border: 3px solid #111; height: 14px; background: #fff; border-radius: 0; }
+:root[data-theme="brut"] .bar > i { border-radius: 0; }
+:root[data-theme="brut"] .topbar { background: var(--bg); backdrop-filter: none; }
+:root[data-theme="brut"] .tabbar { border-top: 3px solid #111; }
+:root[data-theme="brut"] .tabbar button.active { color: #111; background: #ffd23f; }
+:root[data-theme="brut"] .ring-track { stroke: #fff; }
+:root[data-theme="brut"] .ring-fill { stroke: #ff8fab; }
+:root[data-theme="brut"] .ring-fill.over { stroke: #ff3b30; }
+
+/* Fixes after review */
+:root[data-theme="brut"] .ring-track { stroke: #e6e1d0; }
+:root[data-theme="steno"] .tabbar button, :root[data-theme="graph"] .tabbar button, :root[data-theme="term"] .tabbar button { font-size: 0.62rem; letter-spacing: -.02em; }
+:root[data-theme="steno"] .tabbar button, :root[data-theme="graph"] .tabbar button, :root[data-theme="term"] .tabbar button { white-space: nowrap; }

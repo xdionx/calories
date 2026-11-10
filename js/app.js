@@ -15,6 +15,7 @@ import { parseLabel, scoreReading } from './label.js';
 import * as ocr from './ocr.js';
 import * as targets from './targets.js';
 import * as trends from './trends.js';
+import * as theme from './theme.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -1503,6 +1504,8 @@ function importBurnFromUrl() {
   history.replaceState(null, '', location.pathname + location.hash);
 }
 
+theme.apply();
+theme.renderPicker($('#theme-grid'));
 importBurnFromUrl();
 // A photo that fails to load falls back to the lettered placeholder.
 document.addEventListener('error', (e) => {
