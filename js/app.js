@@ -5,6 +5,7 @@ import { searchFoods, lookupBarcode } from './providers/index.js';
 import { RESTAURANTS, getRestaurant } from './providers/restaurants/index.js';
 import { startScanner } from './scanner.js';
 import { whyHeavy, suggestSwaps } from './swaps.js';
+import * as groceryUI from './grocery-ui.js';
 import * as sync from './sync.js';
 import * as garmin from './garmin.js';
 import * as recipeUI from './recipe-ui.js';
@@ -67,6 +68,7 @@ function showView(view) {
   if (view === 'trends') renderTrends();
   if (view === 'settings') renderSettings();
   if (view === 'recipes') recipeUI.render();
+  if (view === 'groceries') groceryUI.render();
   window.scrollTo({ top: 0 });
 }
 
@@ -1321,6 +1323,7 @@ document.addEventListener('error', (e) => {
 bind();
 bindAccount();
 recipeUI.init({ openFood, toast });
+groceryUI.init({ toast, goSettings: () => showView('settings') });
 sync.init();
 renderDate();
 renderToday();
