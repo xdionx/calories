@@ -40,7 +40,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; }
    Nothing relies on position: fixed, which iOS can misplace after a bounce or
    zoom (the tab bar floated mid-screen on an iPad). */
 body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-main { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: none; padding-bottom: 16px; }
+main { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: none; }
 /* No pinch or double-tap zoom: it fights with scrolling on phones. */
 html { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
@@ -67,7 +67,7 @@ a { color: var(--accent); }
 .icon-btn { width: 40px; height: 40px; border-radius: 999px; border: 0; background: transparent; color: var(--text); font-size: 1.5rem; line-height: 1; cursor: pointer; }
 .icon-btn:hover, .date-label:hover { background: var(--line); }
 
-main { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+main { width: 100%; box-sizing: border-box; max-width: 640px; margin: 0 auto; padding: 0 16px 16px; }
 .view { display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
 
 .card { background: var(--card); border-radius: var(--radius); padding: 16px; border: 1px solid var(--line); }
@@ -582,7 +582,7 @@ label.field-est input { border-style: dashed; }
 .gl-item .what small { color: var(--muted); font-size: 0.78rem; }
 .gl-item.done .what b { text-decoration: line-through; color: var(--muted); }
 .gl-item .cost { color: var(--muted); font-size: 0.9rem; white-space: nowrap; }
-.gl-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 8px; }
+.gl-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 8px; flex-wrap: wrap; }
 .gl-hide { display: flex; flex-direction: row; align-items: center; gap: 6px; font-size: 0.85rem; }
 .gl-empty { color: var(--muted); font-size: 0.9rem; margin: 4px 0; }
 .gl-code { font: 800 2rem/1 var(--font); letter-spacing: 0.2em; text-align: center; padding: 14px; background: var(--line); border-radius: 12px; }
