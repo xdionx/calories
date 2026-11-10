@@ -5,6 +5,7 @@ import { searchFoods, lookupBarcode } from './providers/index.js';
 import { RESTAURANTS, getRestaurant } from './providers/restaurants/index.js';
 import { startScanner } from './scanner.js';
 import { analyze } from './swaps.js';
+import { dayRows, foodFlags, foodStatus, LIMITS } from './watch.js';
 import { menuAlternatives, isRestaurantFood } from './swaps-menu.js';
 import * as groceryUI from './grocery-ui.js';
 import * as sync from './sync.js';
@@ -127,6 +128,7 @@ function renderToday() {
       </div>`;
   }).join('');
 
+  renderWatch(totals, entries.length > 0);
   renderMicros(totals);
   renderBalance();
   renderWeight();
@@ -282,6 +284,31 @@ function entryRow(e, meal) {
     </div>`;
 }
 
+// Limits to stay under: red when over, amber when close, so the numbers that matter for
+// eating healthier are the first thing seen after the calorie ring.
+function renderWatch(totals, any) {
+  const card = $('#watch-card');
+  const rows = any ? dayRows(totals) : [];
+  card.hidden = !rows.length;
+  if (!rows.length) return;
+  const bad = rows.filter((r) => r.status !== 'ok');
+  const worst = rows.some((r) => r.status === 'over') ? 'over' : bad.length ? 'warn' : 'ok';
+  const say = bad.length
+    ? bad.map((r) => `${r.label.toLowerCase()} is at ${round(r.pct)}% of the daily limit`).join(', ')
+    : 'All four are well under the daily limit so far.';
+  card.className = `card watch ${worst}`;
+  card.innerHTML = `
+    <div class="card-head"><h2>Keep an eye on</h2><span class="muted small">stay under</span></div>
+    <p class="watch-msg ${worst}">${esc(bad.length ? say.charAt(0).toUpperCase() + say.slice(1) + '.' : say)}</p>
+    ${rows.map((r) => `
+      <div class="watch-row ${r.status}">
+        <div class="lbl"><span>${esc(r.label)}</span><b>${formatAmount(r.value, r.unit)} / ${r.limit.toLocaleString()} ${r.unit}</b></div>
+        <div class="bar"><i style="width:${Math.min(r.pct, 100)}%"></i></div>
+      </div>`).join('')}`;
+}
+
+const dayStatus2 = (pct) => (pct > 100 ? 'over' : pct >= 75 ? 'warn' : '');
+
 function renderMicros(totals = store.totalsFor(ui.date)) {
   const list = NUTRIENTS.filter((n) => n.group === ui.microGroup);
   $('#micro-list').innerHTML = list.map((n) => {
@@ -293,8 +320,8 @@ function renderMicros(totals = store.totalsFor(ui.date)) {
       <div class="micro-row">
         <span>${n.label}</span>
         <span class="amt">${v != null ? formatAmount(v, n.unit) : '–'}</span>
-        <span class="pct">${pct != null ? `${round(pct)}%` : ''}</span>
-        <div class="bar"><i style="width:${Math.min(pct || 0, 100)}%;background:${color}"></i></div>
+        <span class="pct ${limitNutrient && pct != null ? dayStatus2(pct) : ''}">${pct != null ? `${round(pct)}%` : ''}</span>
+        <div class="bar"><i style="width:${Math.min(pct || 0, 100)}%;background:${limitNutrient && pct >= 75 && pct <= 100 ? 'var(--warn)' : color}"></i></div>
       </div>`;
   }).join('');
   $$('#micro-tabs button').forEach((b) => b.classList.toggle('active', b.dataset.group === ui.microGroup));
@@ -399,13 +426,17 @@ function updateFoodPreview() {
   $('#fd-macros').innerHTML = MACROS.map((m) => `
     <div class="fd-macro" style="--c:${m.color}"><b>${formatAmount(n[m.key] || 0, 'g')}</b><span>${m.label}</span></div>`).join('');
 
+  const limitKeys = new Set(LIMITS.map((l) => l.key));
+  const flags = foodFlags(n);
+  $('#fd-flags').hidden = !flags.length;
+  $('#fd-flags').innerHTML = flags.map((f) => `<span class="fd-flag ${f.status}">${esc(f.label)} ${round(f.pct)}% of daily limit</span>`).join('');
   const groups = [['Details', 'detail'], ['Vitamins', 'vitamin'], ['Minerals', 'mineral'], ['Other', 'other']];
   let html = '';
   for (const [title, g] of groups) {
     const rows = NUTRIENTS.filter((x) => x.group === g && n[x.key] != null);
     if (!rows.length) continue;
     html += `<tr class="group"><td colspan="3">${title}</td></tr>`;
-    html += rows.map((x) => `<tr><td>${x.label}</td><td>${formatAmount(n[x.key], x.unit)}</td><td>${x.dv ? `${round((n[x.key] / x.dv) * 100)}%` : ''}</td></tr>`).join('');
+    html += rows.map((x) => `<tr class="${limitKeys.has(x.key) && x.dv ? 'fl-' + foodStatus((n[x.key] / x.dv) * 100) : ''}"><td>${x.label}</td><td>${formatAmount(n[x.key], x.unit)}</td><td>${x.dv ? `${round((n[x.key] / x.dv) * 100)}%` : ''}</td></tr>`).join('');
   }
   // The swap button only appears for heavier foods, and the ideas only show when asked for.
   const ideas = dlg.editing ? { flagged: false } : analyze(food, n, sumNutrients([...store.entriesFor(ui.date).filter((x) => x.meal === dlg.meal), { nutrients: n }]), dayContext(n));
