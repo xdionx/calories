@@ -4,6 +4,7 @@ import { MEALS } from './store.js';
 import { searchFoods, lookupBarcode } from './providers/index.js';
 import { RESTAURANTS, getRestaurant } from './providers/restaurants/index.js';
 import { startScanner } from './scanner.js';
+import { whyHeavy, suggestSwaps } from './swaps.js';
 import * as sync from './sync.js';
 import * as garmin from './garmin.js';
 import * as recipeUI from './recipe-ui.js';
@@ -325,8 +326,20 @@ function openFood(food, { entry = null, meal = ui.addMeal } = {}) {
   $('#fd-delete').hidden = !entry;
   $('#fd-save').textContent = entry ? 'Save changes' : 'Add to log';
   $('.fd-more').open = false;
+  $('#fd-swaps').hidden = true;
   updateFoodPreview();
   $('#food-dialog').showModal();
+}
+
+function renderSwaps(n, heavy) {
+  const swaps = suggestSwaps(dlg.food, n);
+  $('#fd-swaps').innerHTML = `<p class="muted small">This one is high in ${esc(heavy.length > 1 ? heavy.slice(0, -1).join(', ') + ' and ' + heavy.slice(-1) : heavy[0])}. Easy swaps:</p>` + swaps.map((f, i) => {
+    const diff = Math.round(n.kcal - f.nutrients.kcal);
+    return `<button type="button" class="swap-item" data-swap="${i}">
+      <span><b>${esc(f.name)}</b><small>${esc(f.units[0].label)}</small></span>
+      <span class="swap-kcal">${Math.round(f.nutrients.kcal)} kcal${diff > 0 ? `<small>${diff} fewer</small>` : ''}</span></button>`;
+  }).join('');
+  dlg.swaps = swaps;
 }
 
 function dialogQty() {
@@ -351,6 +364,11 @@ function updateFoodPreview() {
     html += `<tr class="group"><td colspan="3">${title}</td></tr>`;
     html += rows.map((x) => `<tr><td>${x.label}</td><td>${formatAmount(n[x.key], x.unit)}</td><td>${x.dv ? `${round((n[x.key] / x.dv) * 100)}%` : ''}</td></tr>`).join('');
   }
+  // The swap button only appears for heavier foods, and the ideas only show when asked for.
+  const heavy = dlg.editing ? [] : whyHeavy(n);
+  $('#fd-swap-btn').hidden = !heavy.length;
+  if (!heavy.length) $('#fd-swaps').hidden = true;
+  if (!$('#fd-swaps').hidden) renderSwaps(n, heavy);
   $('#fd-table').innerHTML = html || '<tr><td>No vitamin or mineral data for this food.</td></tr>';
 }
 
@@ -961,6 +979,16 @@ function bind() {
     if (!b) return;
     ui.addTab = b.dataset.tab;
     renderAddTab();
+  });
+  $('#fd-swap-btn').addEventListener('click', () => {
+    const panel = $('#fd-swaps');
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) updateFoodPreview();
+  });
+  $('#fd-swaps').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-swap]');
+    if (!b || dlg.editing) return;
+    openFood(dlg.swaps[+b.dataset.swap], { meal: dlg.meal });
   });
   $('#fd-meal').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-meal]');

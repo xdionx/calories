@@ -538,3 +538,11 @@ svg.chart .s-avg.line { opacity: .55; }
 label.field-check input { border-color: var(--carbs); outline: 1px solid var(--carbs); }
 label.field-est input { border-style: dashed; }
 #add-tabs button { font-size: 0.8rem; padding-left: 2px; padding-right: 2px; }
+
+/* Healthier swap */
+.swap-btn { align-self: flex-start; }
+.swap-panel { display: flex; flex-direction: column; gap: 6px; margin: 2px 0 8px; }
+.swap-panel p { margin: 0; }
+.swap-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 12px; padding: 10px 12px; font: 500 0.95rem/1.2 var(--font); cursor: pointer; }
+.swap-item small { display: block; color: var(--muted); font-weight: 400; font-size: 0.78rem; margin-top: 2px; }
+.swap-kcal { text-align: right; white-space: nowrap; font-weight: 600; }
