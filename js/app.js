@@ -387,7 +387,13 @@ function swapHtml(a, alts = [], food = null) {
   let html = '';
   const outside = food && isRestaurantFood(food);
   if (alts.length) html += `<p class="muted small">Same menu, a lighter pick next time:</p>${ideaButtons(alts, 0)}`;
-  if ((a.concerns.length || outside) && (a.swaps.length || !alts.length)) html += `<p class="muted small">This one leans on ${esc(joinWords(a.concerns))}.${a.swaps.length ? (outside ? ' Or skip the drive-through, something to make or order instead:' : ' Other lighter swaps:') : " I don't have a simple swap that cuts it much."}</p>${ideaButtons(a.swaps, alts.length)}`;
+  if (a.swaps.length || (a.concerns.length && !alts.length)) {
+    const lead = a.concerns.length
+      ? `This one leans on ${esc(joinWords(a.concerns))}.`
+      : 'Big for what it gives you in protein and fiber.';
+    const tail = a.swaps.length ? (outside ? ' Or skip the drive-through, something to make or order instead:' : ' Similar, but lighter:') : " I don't have a simple swap that cuts it much.";
+    html += `<p class="muted small">${lead}${tail}</p>${ideaButtons(a.swaps, alts.length)}`;
+  }
   if (a.adds.length) html += `<p class="muted small">${esc([...a.notes, a.gaps.length ? `Light on ${joinWords(a.gaps)}. Add one of these:` : 'Round it out:'].join(' '))}</p>${ideaButtons(a.adds, alts.length + a.swaps.length)}`;
   return html || '<p class="muted small">This looks fine as it is.</p>';
 }
