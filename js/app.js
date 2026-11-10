@@ -969,10 +969,39 @@ function bind() {
   $('#prev-day').onclick = () => setDate(store.shiftDate(ui.date, -1));
   $('#next-day').onclick = () => setDate(store.shiftDate(ui.date, 1));
   $('#date-label').onclick = () => setDate(store.todayKey());
+  // Date dialog: a month calendar that follows what you type, so picking and typing are one step.
+  const cal = { y: 0, m: 0, sel: null };
+  const keyOf = (y, m, d) => store.todayKey(new Date(y, m, d));
+  const parseTyped = (txt) => {
+    const t = txt.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!t) return null;
+    const [mo, da, yr] = [+t[1], +t[2], +t[3]];
+    const dt = new Date(yr, mo - 1, da);
+    return yr >= 2000 && dt.getMonth() === mo - 1 && dt.getDate() === da ? dt : null;
+  };
+  function drawCal() {
+    const first = new Date(cal.y, cal.m, 1);
+    $('#dd-month').textContent = first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    const days = new Date(cal.y, cal.m + 1, 0).getDate();
+    const today = store.todayKey();
+    let html = ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) => `<span class="cal-dow">${d}</span>`).join('') + '<span></span>'.repeat(first.getDay());
+    for (let d = 1; d <= days; d++) {
+      const k = keyOf(cal.y, cal.m, d);
+      html += `<button type="button" class="cal-day${k === cal.sel ? ' sel' : ''}${k === today ? ' today' : ''}" data-day="${k}">${d}</button>`;
+    }
+    $('#dd-grid').innerHTML = html;
+  }
+  function showMonth(key) {
+    const [y, m] = key.split('-').map(Number);
+    cal.y = y;
+    cal.m = m - 1;
+    cal.sel = key;
+    drawCal();
+  }
   $('#date-pick').onclick = () => {
     $('#dd-text').value = '';
     $('#dd-error').hidden = true;
-    $('#dd-native').value = ui.date;
+    showMonth(ui.date);
     $('#date-dialog').showModal();
     $('#dd-text').focus();
   };
@@ -981,25 +1010,46 @@ function bind() {
     setDate(store.todayKey());
     $('#date-dialog').close();
   };
-  $('#dd-native').onchange = (e) => {
-    if (!e.target.value) return;
-    setDate(e.target.value);
-    $('#date-dialog').close();
+  const shiftMonth = (n) => {
+    const d = new Date(cal.y, cal.m + n, 1);
+    cal.y = d.getFullYear();
+    cal.m = d.getMonth();
+    drawCal();
   };
-  // Typing: digits only, slashes added as you go (0412 → 04/12, then /2026).
+  $('#dd-prev').onclick = () => shiftMonth(-1);
+  $('#dd-next').onclick = () => shiftMonth(1);
+  $('#dd-grid').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-day]');
+    if (!b) return;
+    setDate(b.dataset.day);
+    $('#date-dialog').close();
+  });
+  // Typing: digits only, slashes added as you go (0412 becomes 04/12, then /2026).
   $('#dd-text').addEventListener('input', (e) => {
     const d = e.target.value.replace(/\D/g, '').slice(0, 8);
     e.target.value = d.length > 4 ? `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}` : d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
     $('#dd-error').hidden = true;
+    // Show the month being typed as soon as month and a full year are in.
+    const dt = parseTyped(e.target.value);
+    if (dt) return showMonth(store.todayKey(dt));
+    if (d.length >= 6) {
+      const mo = +d.slice(0, 2), yr = +d.slice(4);
+      if (mo >= 1 && mo <= 12 && yr >= 2000) {
+        cal.y = yr;
+        cal.m = mo - 1;
+        cal.sel = null;
+        drawCal();
+      }
+    }
   });
   const goTyped = () => {
-    const m = $('#dd-text').value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     const err = $('#dd-error');
-    const bad = (t) => ((err.textContent = t), (err.hidden = false));
-    if (!m) return bad('Type the date as MM/DD/YYYY.');
-    const [mo, da, yr] = [+m[1], +m[2], +m[3]];
-    const dt = new Date(yr, mo - 1, da);
-    if (yr < 2000 || dt.getMonth() !== mo - 1 || dt.getDate() !== da) return bad("That isn't a real date.");
+    const dt = parseTyped($('#dd-text').value);
+    if (!dt) {
+      err.textContent = /^\d{1,2}\/\d{1,2}\/\d{4}$/.test($('#dd-text').value) ? "That isn't a real date." : 'Type the date as MM/DD/YYYY.';
+      err.hidden = false;
+      return;
+    }
     setDate(store.todayKey(dt));
     $('#date-dialog').close();
   };

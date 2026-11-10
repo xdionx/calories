@@ -439,8 +439,10 @@
     <label class="field-group"><span class="field-label">Type it (numbers only)</span>
       <input id="dd-text" type="text" inputmode="numeric" pattern="[0-9/]*" autocomplete="off" maxlength="10" placeholder="MM/DD/YYYY"></label>
     <p class="status error" id="dd-error" hidden></p>
-    <label class="field-group"><span class="field-label">Or pick from a calendar</span>
-      <input id="dd-native" type="date"></label>
+    <div class="cal" id="dd-cal" aria-label="Calendar">
+      <div class="cal-head"><button class="icon-btn" type="button" id="dd-prev" aria-label="Previous month">‹</button><b id="dd-month"></b><button class="icon-btn" type="button" id="dd-next" aria-label="Next month">›</button></div>
+      <div class="cal-grid" id="dd-grid"></div>
+    </div>
     <div class="sheet-actions"><button class="btn" type="button" id="dd-today">Today</button><button class="btn primary" type="button" id="dd-go">Go</button></div>
   </dialog>
 

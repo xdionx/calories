@@ -615,3 +615,12 @@ label.field-est input { border-style: dashed; }
 #date-dialog[open] { display: flex; flex-direction: column; gap: 12px; }
 #date-dialog input { width: 100%; box-sizing: border-box; }
 #dd-text { font-size: 1.4rem; letter-spacing: 0.04em; }
+
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+.cal-dow { font-size: 0.75rem; color: var(--muted); padding: 4px 0; }
+.cal-day { aspect-ratio: 1; max-height: 44px; border: 0; border-radius: 999px; background: none; color: var(--text); font: 500 0.95rem/1 var(--font); cursor: pointer; }
+.cal-day:hover { background: var(--line); }
+.cal-day.today { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.cal-day.sel { background: var(--accent); color: #fff; }
+@media (prefers-color-scheme: dark) { .cal-day.sel { color: #04201c; } }
