@@ -15,12 +15,14 @@ import { mobettahs } from './mobettahs.js';
 import { jurassictacos } from './jurassictacos.js';
 import { littlecaesars } from './littlecaesars.js';
 import { dominos } from './dominos.js';
+import { chickfila } from './chickfila.js';
 
 export const RESTAURANTS = [
   mobettahs,
   jurassictacos,
   littlecaesars,
   dominos,
+  chickfila,
   ...SAMPLE_PROVIDERS,
 ];
 

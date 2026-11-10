@@ -54,17 +54,4 @@ export const tacobell = createStaticProvider({
   ],
 });
 
-export const chickfila = createStaticProvider({
-  id: 'chickfila', name: 'Chick-fil-A', color: '#dd0031', note: NOTE,
-  items: [
-    row('Chicken Sandwich', 'Entrees', 420, 29, 41, 18, 3.5, 1460, 1, 6),
-    row('Spicy Chicken Sandwich', 'Entrees', 450, 28, 45, 19, 4, 1620, 3, 6),
-    row('Grilled Chicken Sandwich', 'Entrees', 390, 28, 44, 12, 2.5, 770, 4, 11),
-    row('Chicken Nuggets (8 ct)', 'Entrees', 250, 27, 11, 11, 2.5, 1210, 0, 1),
-    row('Grilled Nuggets (8 ct)', 'Entrees', 130, 25, 1, 3, 1, 440, 0, 1),
-    row('Waffle Potato Fries (medium)', 'Sides', 420, 5, 45, 24, 4, 240, 5, 1),
-    row('Chick-fil-A Sauce (1 packet)', 'Sauces', 140, 0, 6, 13, 2, 170, 0, 6),
-  ],
-});
-
-export const SAMPLE_PROVIDERS = [mcdonalds, wendys, tacobell, chickfila];
+export const SAMPLE_PROVIDERS = [mcdonalds, wendys, tacobell];
