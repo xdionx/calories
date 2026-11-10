@@ -280,7 +280,7 @@ function entryRow(e, meal) {
         <div class="name">${esc(e.food.name)}</div>
         <div class="sub">${esc(e.food.brand ? `${e.food.brand} · ` : '')}${esc(unitText(e))}</div>
       </div>
-      ${analyze(e.food, e.nutrients, meal, null).flagged ? `<button type="button" class="swap-ico" data-swap-entry="${e.id}" aria-label="Healthier ideas for ${esc(e.food.name)}" title="Healthier ideas"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14"/><path d="M5 19c3-5 6-8 10-10"/></svg></button>` : ''}
+      ${analyze(e.food, e.nutrients, meal, null, e.meal).flagged ? `<button type="button" class="swap-ico" data-swap-entry="${e.id}" aria-label="Healthier ideas for ${esc(e.food.name)}" title="Healthier ideas"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14"/><path d="M5 19c3-5 6-8 10-10"/></svg></button>` : ''}
       <div class="kcal">${round(e.nutrients.kcal)}</div>
     </div>`;
 }
@@ -400,7 +400,7 @@ function renderSwaps(a, alts = []) {
 // From the Today list: ideas for something already logged, shown only when its icon is tapped.
 const swapDlg = { swaps: [], meal: null };
 async function openEntrySwaps(entry) {
-  const a = analyze(entry.food, entry.nutrients, mealSum(store.entriesFor(ui.date).filter((x) => x.meal === entry.meal)), dayContext());
+  const a = analyze(entry.food, entry.nutrients, mealSum(store.entriesFor(ui.date).filter((x) => x.meal === entry.meal)), dayContext(), entry.meal);
   swapDlg.swaps = ideaList(a);
   swapDlg.meal = entry.meal;
   $('#sw-title').textContent = entry.food.name;
@@ -440,7 +440,7 @@ function updateFoodPreview() {
     html += rows.map((x) => `<tr class="${limitKeys.has(x.key) && x.dv ? 'fl-' + foodStatus((n[x.key] / x.dv) * 100) : ''}"><td>${x.label}</td><td>${formatAmount(n[x.key], x.unit)}</td><td>${x.dv ? `${round((n[x.key] / x.dv) * 100)}%` : ''}</td></tr>`).join('');
   }
   // The swap button only appears for heavier foods, and the ideas only show when asked for.
-  const ideas = dlg.editing ? { flagged: false } : analyze(food, n, sumNutrients([...store.entriesFor(ui.date).filter((x) => x.meal === dlg.meal), { nutrients: n }]), dayContext(n));
+  const ideas = dlg.editing ? { flagged: false } : analyze(food, n, sumNutrients([...store.entriesFor(ui.date).filter((x) => x.meal === dlg.meal), { nutrients: n }]), dayContext(n), dlg.meal);
   $('#fd-swap-btn').hidden = !ideas.flagged;
   if (!ideas.flagged) $('#fd-swaps').hidden = true;
   if (!$('#fd-swaps').hidden) {

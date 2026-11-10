@@ -10,6 +10,7 @@ function roleOf(f) {
   const name = (f.name || '').toLowerCase();
   if (/dessert|treat/.test(cat) || /mcflurry|frosty|shake|sundae|cone/.test(name)) return 'dessert';
   if (/drink|beverage/.test(cat)) return 'drink';
+  if (/breakfast/.test(cat) || /breakfast|mcmuffin|egg|biscuit|hotcake|pancake|omelet|scramble|croissan|bagel/.test(name)) return /hash brown/.test(name) ? 'side' : 'breakfast';
   if (/salad|soup/.test(cat)) return 'salad';
   if (/pizza|crust|deep dish/.test(cat) || /pizza/.test(name)) return 'pizza';
   if (/nugget|tender|strip|wing|bites/.test(name)) return 'bites';
