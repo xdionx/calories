@@ -10,18 +10,22 @@
 //     url: 'https://example.com/menus/burger-king.json',
 //   });
 
-import { SAMPLE_PROVIDERS } from './sample-menus.js';
+import { mcdonalds, wendys, tacobell } from './fastfood.js';
 import { mobettahs } from './mobettahs.js';
 import { jurassictacos } from './jurassictacos.js';
 import { littlecaesars } from './littlecaesars.js';
 import { dominos } from './dominos.js';
+import { chickfila } from './chickfila.js';
 
 export const RESTAURANTS = [
   mobettahs,
   jurassictacos,
   littlecaesars,
   dominos,
-  ...SAMPLE_PROVIDERS,
+  chickfila,
+  mcdonalds,
+  wendys,
+  tacobell,
 ];
 
 export const getRestaurant = (id) => RESTAURANTS.find((r) => r.id === id);
