@@ -3,6 +3,8 @@
 import { NUTRIENTS, formatAmount } from './nutrients.js';
 import * as store from './store.js';
 import * as rx from './recipes.js';
+import * as share from './recipe-share.js';
+import * as hh from './household.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -27,7 +29,8 @@ const view = {
 };
 
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
-const getRecipe = (id) => store.getState().recipes.find((r) => r.id === id);
+const getRecipe = (id) => store.getState().recipes.find((r) => r.id === id) || share.familyRecipes().find((r) => r.id === id);
+const isFamily = (id) => !store.getState().recipes.some((r) => r.id === id);
 // The book's page order: alphabetical, like a contents page.
 const bookOrder = () => [...store.getState().recipes].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -38,6 +41,9 @@ const apiKey = () => store.getState().settings.usdaApiKey;
 export function init(d) {
   deps = d;
   bind();
+  hh.subscribe(() => {
+    if (!$('#view-recipes').hidden && view.mode === 'list') renderShare();
+  });
 }
 
 export function render() {
@@ -51,6 +57,7 @@ export function render() {
 
 /** Called when recipes change from another device. */
 export function refresh() {
+  if (view.mode === 'list') renderShare();
   if (view.mode === 'list') renderList();
   else if (view.mode === 'detail') {
     if (!getRecipe(view.id)) showList();
@@ -121,6 +128,26 @@ function renderList() {
       </li>`;
   }).join('');
   $('#recipe-empty').hidden = recipes.length > 0;
+  renderShare();
+}
+
+// Sharing with the household: a switch for my own book, and the book pages others share.
+function renderShare() {
+  const inHouse = Boolean(hh.getState().household);
+  const family = share.familyRecipes();
+  $('#rx-share').hidden = !inHouse;
+  if (inHouse) {
+    $('#rx-share-label').textContent = `Share my recipe book with ${hh.getState().household.name}`;
+    $('#rx-share-cb').checked = share.isSharing();
+  }
+  $('#family-head').hidden = !family.length;
+  $('#family-list').innerHTML = family.map((r) => {
+    const n = rx.recipeNutrition(r);
+    return `
+      <li data-recipe="${esc(r.id)}" tabindex="0" role="button">
+        <span class="toc-name">${esc(r.name || 'Untitled recipe')}<small>from ${esc(r.by)} · ${round(n.kcal)} kcal a serving</small></span>
+      </li>`;
+  }).join('');
 }
 
 function openBook() {
@@ -138,12 +165,15 @@ function openBook() {
 function renderDetail() {
   const r = getRecipe(view.id);
   if (!r) return showList();
+  const family = isFamily(r.id);
   const order = bookOrder();
   const idx = order.findIndex((x) => x.id === r.id);
   const n = rx.recipeNutrition(r);
   const src = rx.nutritionSource(r);
   $('#rd-name').textContent = r.name || 'Untitled recipe';
-  $('#rd-meta').textContent = `Serves ${r.servings}`;
+  $('#rd-meta').textContent = family ? `Serves ${r.servings} · shared by ${r.by}` : `Serves ${r.servings}`;
+  $('#rd-edit').hidden = family;
+  $('#rd-copy').hidden = !family;
   $('#rd-summary').innerHTML = `<div class="rp-source">${src === 'recipe' ? 'Calories as printed in the recipe' : r.ingredients.length ? 'Calories worked out from the ingredients' : 'No calories yet'}</div>` + summaryHtml(n);
   $('#rd-ingredients').innerHTML = r.ingredients.map((ing) => {
     const k = rx.ingredientNutrients(ing).kcal;
@@ -153,9 +183,9 @@ function renderDetail() {
   const steps = (r.directions || '').split(/\n+/).map((l) => l.trim().replace(/^(?:step\s*)?\d+[.):]\s*/i, '')).filter(Boolean);
   $('#rd-directions-card').hidden = !steps.length;
   $('#rd-directions').innerHTML = steps.map((l) => `<li>${esc(l)}</li>`).join('');
-  $('#rd-num').textContent = `${idx + 1} of ${order.length}`;
-  $('#rd-prev').disabled = idx <= 0;
-  $('#rd-next').disabled = idx >= order.length - 1;
+  $('#rd-num').textContent = family ? 'family recipe' : `${idx + 1} of ${order.length}`;
+  $('#rd-prev').disabled = family || idx <= 0;
+  $('#rd-next').disabled = family || idx >= order.length - 1;
   const page = $('#rd-page');
   if (view.turn) {
     page.classList.remove('turn-next', 'turn-prev');
@@ -545,6 +575,23 @@ function bind() {
 
   // Detail
   $('#rd-back').onclick = showList;
+  $('#rd-copy').onclick = () => {
+    const r = getRecipe(view.id);
+    if (!r || !isFamily(r.id)) return;
+    const { by: _by, ...own } = r;
+    const copy = { ...own, id: newId(), createdAt: undefined };
+    store.saveRecipe(copy);
+    deps.toast('Added to your recipe book');
+    showDetail(copy.id);
+  };
+  $('#family-list').addEventListener('click', (e) => {
+    const li = e.target.closest('li[data-recipe]');
+    if (li) showDetail(li.dataset.recipe);
+  });
+  $('#rx-share-cb').onchange = (e) => {
+    share.setSharing(e.target.checked);
+    deps.toast(e.target.checked ? 'Your recipes are shared' : 'Your recipes are private again');
+  };
   $('#rd-edit').onclick = () => showEditor(getRecipe(view.id));
   $('#rd-log').onclick = () => {
     const r = getRecipe(view.id);

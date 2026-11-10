@@ -658,3 +658,6 @@ label.field-est input { border-style: dashed; }
 .fd-flag.over { border-color: var(--over); color: var(--over); background: color-mix(in srgb, var(--over) 10%, transparent); }
 .fd-more tr.fl-warn td { color: var(--warn); font-weight: 600; }
 .fd-more tr.fl-over td { color: var(--over); font-weight: 700; }
+
+.rx-share { margin: 6px 0 10px; font-size: 0.9rem; }
+#family-head { margin-top: 16px; }
