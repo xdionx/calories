@@ -4,7 +4,7 @@ import { MEALS } from './store.js';
 import { searchFoods, lookupBarcode } from './providers/index.js';
 import { RESTAURANTS, getRestaurant } from './providers/restaurants/index.js';
 import { startScanner } from './scanner.js';
-import { whyHeavy, suggestSwaps } from './swaps.js';
+import { analyze } from './swaps.js';
 import * as groceryUI from './grocery-ui.js';
 import * as sync from './sync.js';
 import * as garmin from './garmin.js';
@@ -121,7 +121,7 @@ function renderToday() {
     return `
       <div class="card meal">
         <div class="card-head"><h2>${meal}</h2><span class="meal-kcal">${round(kcal).toLocaleString()} kcal</span></div>
-        ${list.length ? list.map(entryRow).join('') : '<div class="empty">Nothing logged yet.</div>'}
+        ${list.length ? list.map((e) => entryRow(e, mealSum(list))).join('') : '<div class="empty">Nothing logged yet.</div>'}
         <button class="btn small add-to-meal" data-add-meal="${meal}">+ Add food</button>
       </div>`;
   }).join('');
@@ -257,7 +257,18 @@ function thumb(food, cls = '') {
     : `<span class="thumb ${cls} none" data-letter="${letter}"></span>`;
 }
 
-function entryRow(e) {
+const sumNutrients = (list) => list.reduce((t, e) => ({ kcal: t.kcal + (e.nutrients.kcal || 0), protein: t.protein + (e.nutrients.protein || 0), fiber: t.fiber + (e.nutrients.fiber || 0) }), { kcal: 0, protein: 0, fiber: 0 });
+const mealSum = sumNutrients;
+
+// Today so far (plus the food being looked at, if it isn't logged yet) against the goals.
+function dayContext(extra = null) {
+  const { goals } = store.getState();
+  const t = store.totalsFor(ui.date);
+  const add = (k) => (t[k] || 0) + (extra ? extra[k] || 0 : 0);
+  return { kcal: add('kcal'), kcalGoal: goals.kcal, protein: add('protein'), proteinGoal: goals.protein, fiber: add('fiber'), fiberGoal: 28 };
+}
+
+function entryRow(e, meal) {
   return `
     <div class="entry" data-entry="${e.id}">
       ${thumb(e.food, 'sm')}
@@ -265,7 +276,7 @@ function entryRow(e) {
         <div class="name">${esc(e.food.name)}</div>
         <div class="sub">${esc(e.food.brand ? `${e.food.brand} · ` : '')}${esc(unitText(e))}</div>
       </div>
-      <button type="button" class="swap-ico" data-swap-entry="${e.id}" aria-label="Healthier ideas for ${esc(e.food.name)}" title="Healthier ideas"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14"/><path d="M5 19c3-5 6-8 10-10"/></svg></button>
+      ${analyze(e.food, e.nutrients, meal, null).flagged ? `<button type="button" class="swap-ico" data-swap-entry="${e.id}" aria-label="Healthier ideas for ${esc(e.food.name)}" title="Healthier ideas"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14"/><path d="M5 19c3-5 6-8 10-10"/></svg></button>` : ''}
       <div class="kcal">${round(e.nutrients.kcal)}</div>
     </div>`;
 }
@@ -334,30 +345,33 @@ function openFood(food, { entry = null, meal = ui.addMeal } = {}) {
   $('#food-dialog').showModal();
 }
 
-function swapHtml(swaps, n, heavy) {
-  const why = heavy.length ? heavy.slice(0, -1).join(', ') + (heavy.length > 1 ? ' and ' : '') + heavy[heavy.length - 1] : '';
-  const intro = heavy.length ? `This one is high in ${esc(why)}. Easy swaps:` : 'This one looks fine as it is. If you want something lighter next time:';
-  return `<p class="muted small">${intro}</p>` + swaps.map((f, i) => {
-    const diff = Math.round(n.kcal - f.nutrients.kcal);
-    return `<button type="button" class="swap-item" data-swap="${i}">
-      <span><b>${esc(f.name)}</b><small>${esc(f.units[0].label)}</small></span>
-      <span class="swap-kcal">${Math.round(f.nutrients.kcal)} kcal${diff > 0 ? `<small>${diff} fewer</small>` : ''}</span></button>`;
-  }).join('');
+const ideaButtons = (list, offset, n) => list.map((f, i) => `
+    <button type="button" class="swap-item" data-swap="${offset + i}">
+      <span><b>${esc(f.name)}</b><small>${esc(f.units[0].label)} · ${Math.round(f.nutrients.kcal)} kcal</small></span>
+      <span class="swap-kcal swap-gain">${esc(f.gain.split(' · ').join('\n'))}</span></button>`).join('');
+const joinWords = (w) => (w.length > 1 ? w.slice(0, -1).join(', ') + ' and ' + w[w.length - 1] : w[0] || '');
+
+// Ideas panel: swaps that cut what the item leans on, then additions that round out the meal.
+function swapHtml(a) {
+  let html = '';
+  if (a.concerns.length) html += `<p class="muted small">This one leans on ${esc(joinWords(a.concerns))}.${a.swaps.length ? ' Lighter swaps:' : " I don't have a simple swap that cuts it much."}</p>${ideaButtons(a.swaps, 0)}`;
+  if (a.adds.length) html += `<p class="muted small">${esc([...a.notes, a.gaps.length ? `Light on ${joinWords(a.gaps)}. Add one of these:` : 'Round it out:'].join(' '))}</p>${ideaButtons(a.adds, a.swaps.length)}`;
+  return html || '<p class="muted small">This looks fine as it is.</p>';
 }
 
-function renderSwaps(n, heavy) {
-  dlg.swaps = suggestSwaps(dlg.food, n);
-  $('#fd-swaps').innerHTML = swapHtml(dlg.swaps, n, heavy);
+function renderSwaps(a) {
+  dlg.swaps = [...a.swaps, ...a.adds];
+  $('#fd-swaps').innerHTML = swapHtml(a);
 }
 
 // From the Today list: ideas for something already logged, shown only when its icon is tapped.
 const swapDlg = { swaps: [], meal: null };
 function openEntrySwaps(entry) {
-  const n = entry.nutrients;
-  swapDlg.swaps = suggestSwaps(entry.food, n);
+  const a = analyze(entry.food, entry.nutrients, mealSum(store.entriesFor(ui.date).filter((x) => x.meal === entry.meal)), dayContext());
+  swapDlg.swaps = [...a.swaps, ...a.adds];
   swapDlg.meal = entry.meal;
   $('#sw-title').textContent = entry.food.name;
-  $('#sw-body').innerHTML = swapHtml(swapDlg.swaps, n, whyHeavy(n));
+  $('#sw-body').innerHTML = swapHtml(a);
   $('#swap-dialog').showModal();
 }
 
@@ -384,10 +398,10 @@ function updateFoodPreview() {
     html += rows.map((x) => `<tr><td>${x.label}</td><td>${formatAmount(n[x.key], x.unit)}</td><td>${x.dv ? `${round((n[x.key] / x.dv) * 100)}%` : ''}</td></tr>`).join('');
   }
   // The swap button only appears for heavier foods, and the ideas only show when asked for.
-  const heavy = dlg.editing ? [] : whyHeavy(n);
-  $('#fd-swap-btn').hidden = !heavy.length;
-  if (!heavy.length) $('#fd-swaps').hidden = true;
-  if (!$('#fd-swaps').hidden) renderSwaps(n, heavy);
+  const ideas = dlg.editing ? { flagged: false } : analyze(food, n, sumNutrients([...store.entriesFor(ui.date).filter((x) => x.meal === dlg.meal), { nutrients: n }]), dayContext(n));
+  $('#fd-swap-btn').hidden = !ideas.flagged;
+  if (!ideas.flagged) $('#fd-swaps').hidden = true;
+  if (!$('#fd-swaps').hidden) renderSwaps(ideas);
   $('#fd-table').innerHTML = html || '<tr><td>No vitamin or mineral data for this food.</td></tr>';
 }
 

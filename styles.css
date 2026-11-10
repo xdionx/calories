@@ -630,3 +630,4 @@ label.field-est input { border-style: dashed; }
 .dd-field input { position: relative; background: transparent; }
 .dd-ghost { position: absolute; inset: 0; color: var(--muted); pointer-events: none; white-space: pre; display: flex; align-items: center; }
 .dd-ghost i { visibility: hidden; font-style: normal; }
+.swap-gain { white-space: pre-line; font-size: 0.8rem; color: var(--accent); font-weight: 600; }
