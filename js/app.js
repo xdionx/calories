@@ -7,6 +7,8 @@ import { startScanner } from './scanner.js';
 import * as sync from './sync.js';
 import * as garmin from './garmin.js';
 import * as recipeUI from './recipe-ui.js';
+import { parseLabel, scoreReading } from './label.js';
+import * as ocr from './ocr.js';
 import * as targets from './targets.js';
 import * as trends from './trends.js';
 
@@ -373,6 +375,7 @@ function renderAddTab() {
   $$('#add-tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === ui.addTab));
   $$('#view-add .tab').forEach((t) => (t.hidden = t.dataset.tab !== ui.addTab));
   if (ui.addTab !== 'scan') stopScanning();
+  if (ui.addTab !== 'label') releaseOcrSoon();
   if (ui.addTab === 'restaurants') renderRestaurants();
   if (ui.addTab === 'mine') renderMine();
   if (ui.addTab === 'search' && !$('#search-input').value) setTimeout(() => $('#search-input').focus(), 50);
@@ -521,19 +524,67 @@ function renderMine() {
   }
 }
 
+/* Create a food (also the review screen after photographing a label) */
+const CUSTOM_MAIN = ['kcal', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'sodium', 'satFat', 'caffeine'];
+const custom = { grams: null, perContainer: null };
+
+function buildCustomExtras() {
+  $('#custom-more-fields').innerHTML = NUTRIENTS.filter((n) => !CUSTOM_MAIN.includes(n.key)).map((n) =>
+    `<label data-field="${n.key}">${esc(n.label)} (${esc(n.unit)}) <input name="${n.key}" type="number" step="any" min="0" inputmode="decimal"></label>`).join('');
+}
+
+/**
+ * Opens the food form. With `values` (from a label photo) the fields are
+ * filled in; `fixed` ones are marked "check me" and `estimated` ones are
+ * marked as rough.
+ */
+function openCustom({ title = 'Create a food', values = {}, fixed = [], estimated = [], warnings = [], serving = '', grams = null, perContainer = null } = {}) {
+  const form = $('#custom-form');
+  form.reset();
+  custom.grams = grams;
+  custom.perContainer = perContainer;
+  $('#custom-title').textContent = title;
+  form.elements.serving.value = serving || '1 serving';
+  $$('#custom-form label[data-field], #custom-form label.field-check, #custom-form label.field-est').forEach((l) => l.classList.remove('field-check', 'field-est'));
+  let extra = false;
+  for (const [k, v] of Object.entries(values)) {
+    const input = form.elements[k];
+    if (!input) continue;
+    input.value = +(+v).toFixed(2);
+    const label = input.closest('label');
+    if (fixed.includes(k)) label.classList.add('field-check');
+    if (estimated.includes(k)) label.classList.add('field-est');
+    if (!CUSTOM_MAIN.includes(k)) extra = true;
+  }
+  const notes = [...warnings];
+  if (fixed.length) notes.push('Fields outlined in orange were hard to read. Check them against the label.');
+  if (estimated.length) notes.push('Dashed fields are rough: they were worked out from the label\'s % Daily Value.');
+  const warn = $('#custom-warn');
+  warn.innerHTML = notes.map((n) => `<p>${esc(n)}</p>`).join('');
+  warn.hidden = !notes.length;
+  $('#custom-more').open = extra;
+  $('#custom-dialog').showModal();
+  if (!form.elements.name.value) setTimeout(() => form.elements.name.focus(), 50);
+}
+
 function saveCustomFood(form) {
   const data = Object.fromEntries(new FormData(form));
   const nutrients = {};
-  for (const k of ['kcal', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'sodium', 'satFat', 'caffeine']) {
-    if (data[k] !== '' && data[k] != null) nutrients[k] = parseFloat(data[k]);
+  for (const n of NUTRIENTS) {
+    const v = data[n.key];
+    if (v !== '' && v != null && Number.isFinite(parseFloat(v))) nutrients[n.key] = parseFloat(v);
   }
+  const units = [{ label: data.serving.trim() || '1 serving', factor: 1 }];
+  // Label photos know the serving's weight and how many servings are in the package.
+  if (custom.grams > 0) units.push({ label: 'g', factor: 1 / custom.grams }, { label: '100 g', factor: 100 / custom.grams });
+  if (custom.perContainer > 1) units.push({ label: `whole package (${custom.perContainer} servings)`, factor: custom.perContainer });
   const food = {
     id: `custom:${Date.now()}`,
     source: 'My food',
     name: data.name.trim(),
     brand: '',
     nutrients,
-    units: [{ label: data.serving.trim() || '1 serving', factor: 1 }],
+    units,
     defaultUnit: 0,
   };
   store.saveMyFood(food);
@@ -541,6 +592,67 @@ function saveCustomFood(form) {
   $('#custom-dialog').close();
   renderMine();
   openFood(food);
+}
+
+/* Label photo */
+let ocrTimer = null;
+function releaseOcrSoon() {
+  clearTimeout(ocrTimer);
+  ocrTimer = setTimeout(() => ocr.release(), 60000);
+}
+
+function labelStatus(msg, kind = '') {
+  const el = $('#label-status');
+  el.textContent = msg;
+  el.className = `status ${kind}`;
+}
+
+let labelBusy = false;
+async function handleLabelPhoto(file) {
+  if (!file || labelBusy) return;
+  labelBusy = true;
+  clearTimeout(ocrTimer);
+  const preview = $('#label-preview');
+  const img = $('#label-img');
+  if (img.dataset.url) URL.revokeObjectURL(img.dataset.url);
+  img.dataset.url = URL.createObjectURL(file);
+  img.src = img.dataset.url;
+  preview.hidden = false;
+  $('#label-bar').style.width = '3%';
+  $('#label-take').disabled = $('#label-pick').disabled = true;
+  labelStatus('Getting the reader ready… (the first time takes a few seconds)');
+  try {
+    const best = await ocr.readLabel(file, {
+      score: scoreReading,
+      good: 7,
+      progress: (p, attempt) => {
+        $('#label-bar').style.width = `${Math.max(3, Math.round(p * 100))}%`;
+        labelStatus(attempt > 1 ? 'Trying the photo another way…' : 'Reading the label…');
+      },
+    });
+    const parsed = parseLabel(best.text);
+    if (parsed.count < 2) {
+      labelStatus("Couldn't read a nutrition label in that photo. Try again closer to the label, flat on, with even light and no glare. Or type the numbers in.", 'error');
+      return;
+    }
+    labelStatus(`Read ${parsed.count} values. Check them, name the food, and save.`, 'ok');
+    openCustom({
+      title: 'Check the label',
+      values: parsed.nutrients,
+      fixed: [...parsed.fixed],
+      estimated: [...parsed.estimated],
+      warnings: parsed.warnings,
+      serving: parsed.serving.text,
+      grams: parsed.serving.grams,
+      perContainer: parsed.perContainer,
+    });
+  } catch (e) {
+    labelStatus(e.message || 'Could not read that photo.', 'error');
+  } finally {
+    labelBusy = false;
+    $('#label-take').disabled = $('#label-pick').disabled = false;
+    releaseOcrSoon();
+  }
 }
 
 /* ---------------- Trends ---------------- */
@@ -874,7 +986,18 @@ function bind() {
     restTimer = setTimeout(() => filterRestaurant(e.target.value), 150);
   };
 
-  $('#new-food').onclick = () => $('#custom-dialog').showModal();
+  buildCustomExtras();
+  $('#new-food').onclick = () => openCustom();
+  $('#label-take').onclick = () => $('#label-camera').click();
+  $('#label-pick').onclick = () => $('#label-file').click();
+  $('#label-manual').onclick = () => openCustom({ title: 'Type in a label' });
+  for (const id of ['#label-camera', '#label-file']) {
+    $(id).onchange = (e) => {
+      const f = e.target.files[0];
+      e.target.value = '';
+      handleLabelPhoto(f);
+    };
+  }
   $('#custom-close').onclick = () => $('#custom-dialog').close();
   $('#custom-form').onsubmit = (e) => {
     e.preventDefault();

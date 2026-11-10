@@ -72,6 +72,7 @@
       <div class="seg" id="add-tabs" role="tablist">
         <button role="tab" data-tab="search" class="active">Search</button>
         <button role="tab" data-tab="scan">Scan</button>
+        <button role="tab" data-tab="label">Label</button>
         <button role="tab" data-tab="restaurants">Restaurants</button>
         <button role="tab" data-tab="mine">Recent</button>
       </div>
@@ -99,6 +100,25 @@
           <input type="text" id="barcode-input" inputmode="numeric" pattern="[0-9]*" placeholder="Or type the barcode number" autocomplete="off">
           <button class="btn" type="submit">Look up</button>
         </form>
+      </div>
+
+      <div class="tab" data-tab="label" hidden>
+        <div class="card label-card">
+          <h2>Photograph a nutrition label</h2>
+          <p class="muted small">Take a picture of the Nutrition Facts panel and the numbers are read for you. Hold the phone square to the label, in good light, so the text fills the picture. The photo is read on your device and isn't uploaded.</p>
+          <div class="btn-row">
+            <button class="btn primary grow" type="button" id="label-take">Take a photo</button>
+            <button class="btn grow" type="button" id="label-pick">Choose a photo</button>
+          </div>
+          <input type="file" id="label-camera" accept="image/*" capture="environment" hidden>
+          <input type="file" id="label-file" accept="image/*" hidden>
+          <div class="label-preview" id="label-preview" hidden>
+            <img id="label-img" alt="Your photo of the label">
+            <div class="label-progress"><i id="label-bar"></i></div>
+          </div>
+          <div class="status" id="label-status"></div>
+          <button class="link-btn small" type="button" id="label-manual">Or type the numbers in yourself</button>
+        </div>
       </div>
 
       <div class="tab" data-tab="restaurants" hidden>
@@ -403,9 +423,10 @@
   <dialog id="custom-dialog" class="sheet">
     <form id="custom-form">
       <div class="sheet-head">
-        <h2>Create a food</h2>
+        <h2 id="custom-title">Create a food</h2>
         <button class="icon-btn" type="button" id="custom-close" aria-label="Close">✕</button>
       </div>
+      <div class="custom-warn" id="custom-warn" hidden></div>
       <label>Name <input name="name" required placeholder="e.g. Mom's lasagna"></label>
       <label>Serving <input name="serving" placeholder="1 serving" value="1 serving"></label>
       <div class="grid2">
@@ -419,6 +440,10 @@
         <label>Sat. fat (g) <input name="satFat" type="number" step="any" min="0" inputmode="decimal"></label>
         <label>Caffeine (mg) <input name="caffeine" type="number" step="any" min="0" inputmode="decimal"></label>
       </div>
+      <details class="fd-more" id="custom-more">
+        <summary>More nutrients (fats, vitamins, minerals)</summary>
+        <div class="grid2" id="custom-more-fields"></div>
+      </details>
       <div class="sheet-actions">
         <button class="btn primary grow" type="submit">Save food</button>
       </div>
