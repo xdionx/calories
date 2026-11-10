@@ -12,7 +12,9 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>try{var t=localStorage.getItem("ct.theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="themes.css">
 </head>
 <body>
   <header class="topbar">
@@ -320,6 +322,12 @@
 
     <!-- SETTINGS -->
     <section class="view" id="view-settings" data-view="settings" hidden>
+      <div class="card form" id="theme-card">
+        <h2>Look</h2>
+        <p class="muted small">Pick how the app looks. This is saved on this device only.</p>
+        <div class="theme-grid" id="theme-grid"></div>
+      </div>
+
       <div class="card form" id="account-card">
         <h2>Account</h2>
 
