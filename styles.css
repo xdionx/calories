@@ -35,14 +35,18 @@
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+/* The app is a fixed-height column: header, a scrolling main, then the tab bar.
+   Nothing relies on position: fixed, which iOS can misplace after a bounce or
+   zoom (the tab bar floated mid-screen on an iPad). */
+body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+main { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: none; padding-bottom: 16px; }
 /* No pinch or double-tap zoom: it fights with scrolling on phones. */
 html { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   font: 16px/1.45 var(--font);
   background: var(--bg);
   color: var(--text);
-  padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 16px);
   -webkit-tap-highlight-color: transparent;
 }
 h2 { font-size: 1.05rem; margin: 0; }
@@ -53,7 +57,7 @@ a { color: var(--accent); }
 
 /* Top bar */
 .topbar {
-  position: sticky; top: 0; z-index: 5;
+  flex: none; z-index: 5;
   display: flex; align-items: center; justify-content: space-between;
   padding: calc(env(safe-area-inset-top) + 8px) 12px 8px;
   background: color-mix(in srgb, var(--bg) 88%, transparent);
@@ -204,7 +208,7 @@ label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; col
 
 /* Tab bar */
 .tabbar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+  flex: none; z-index: 10;
   display: flex; justify-content: space-around;
   background: var(--card); border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom);
