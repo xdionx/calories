@@ -42,7 +42,7 @@ const SWAPS = [
   s('turkey', 'Sliced turkey breast', '3 oz (85 g)', ['meat', 'baked'], 90, 16, 3, 1, 0.3, 0, 2, 600, 40),
   s('salmon', 'Baked salmon', '4 oz (113 g)', ['meat'], 233, 25, 0, 14, 3, 0, 0, 70, 70),
   s('black-beans', 'Black beans', '1/2 cup (86 g)', ['meat', 'cheese'], 114, 7.6, 20, 0.5, 0.1, 7.5, 0.3, 1, 0),
-  s('sweet-potato', 'Baked sweet potato', '1 medium (114 g)', ['fried', 'baked'], 112, 2, 26, 0.1, 0, 3.8, 5.4, 72, 0),
+  s('sweet-potato', 'Baked sweet potato', '1 medium (114 g)', ['fried', 'baked', 'potato'], 112, 2, 26, 0.1, 0, 3.8, 5.4, 72, 0),
   s('popcorn', 'Air-popped popcorn', '3 cups (24 g)', ['fried', 'snack'], 93, 3, 19, 1.1, 0.1, 3.6, 0.2, 2, 0),
   s('carrots-hummus', 'Baby carrots with hummus', '3 oz carrots + 2 tbsp hummus', ['fried', 'snack', 'cheese'], 100, 2.8, 11, 5, 0.7, 3.5, 3.5, 180, 0),
   s('chickpeas', 'Roasted chickpeas', '1/2 cup (82 g)', ['fried', 'snack'], 134, 7, 22, 2, 0.2, 6, 4, 6, 0),
@@ -65,6 +65,10 @@ const SWAPS = [
   s('egg-muffin', 'Egg and veggie English muffin', '1 sandwich, whole wheat', ['egg', 'baked', 'meat'], 280, 20, 28, 10, 3.5, 4, 4, 480, 190),
   s('veggie-scramble', 'Veggie egg scramble with whole-wheat toast', '2 eggs + 1 slice', ['egg', 'meat', 'baked'], 270, 18, 20, 13, 4, 4, 3, 420, 330),
   s('breakfast-burrito', 'Egg and black bean breakfast burrito', '1 small whole-wheat burrito', ['egg', 'meat', 'taco', 'baked'], 300, 20, 32, 10, 3.5, 7, 2, 520, 190),
+  s('baked-potato', 'Baked potato with Greek yogurt and chives', '1 medium (173 g) + 2 tbsp yogurt', ['potato', 'fried', 'baked'], 180, 6, 38, 0.5, 0.2, 4, 2.5, 25, 1),
+  s('roasted-potatoes', 'Roasted potatoes with olive oil and herbs', '1 cup (about 150 g)', ['potato', 'fried'], 160, 3, 28, 4.5, 0.7, 3.5, 1.5, 150, 0),
+  s('air-fried-wedges', 'Air-fried potato wedges', '1 cup (about 150 g)', ['potato', 'fried'], 140, 3, 27, 2.5, 0.4, 3.5, 1.5, 200, 0),
+  s('breakfast-potatoes', 'Roasted breakfast potatoes with peppers and onions', '1 cup (about 150 g)', ['potato', 'egg', 'baked'], 150, 3, 27, 3.5, 0.5, 3.5, 3, 140, 0),
   s('side-salad', 'Side salad with vinaigrette', '1.5 cups', ['snack'], 80, 2, 8, 5, 0.7, 3, 3, 150, 0),
   s('almonds', 'Almonds', '1 oz (about 23 nuts)', ['snack', 'sweet'], 164, 6, 6, 14, 1.1, 3.5, 1.2, 0, 0),
 ];
@@ -75,11 +79,12 @@ const SWAPS = [
 const MEALS_OF = {
   strawberries: 'BLDS', apple: 'BLDS', blueberries: 'BLDS', 'yogurt-berries': 'BS', 'dark-chocolate': 'LDS', applepb: 'BS',
   oatmeal: 'B', 'frozen-grapes': 'LDS', sparkling: 'BLDS', 'iced-tea': 'BLDS', 'milk-skim': 'BLDS',
-  'chicken-breast': 'LD', turkey: 'LD', salmon: 'LD', 'black-beans': 'LD', 'sweet-potato': 'LD', popcorn: 'S',
+  'chicken-breast': 'LD', turkey: 'LD', salmon: 'LD', 'black-beans': 'LD', popcorn: 'S',
   'carrots-hummus': 'LS', chickpeas: 'S', 'egg-whites': 'B', yogurt: 'BS', cottage: 'BS', 'string-cheese': 'S',
   'avocado-toast': 'BS', 'turkey-burger': 'LD', 'chicken-sandwich': 'LD', 'veggie-burger': 'LD', 'thin-pizza': 'LD',
   'turkey-dog': 'LD', 'chicken-tacos': 'LD', 'burrito-bowl': 'LD', 'baked-tenders': 'LD', smoothie: 'BS',
   'yogurt-parfait': 'B', 'egg-muffin': 'B', 'veggie-scramble': 'B', 'breakfast-burrito': 'B', 'side-salad': 'LD', almonds: 'BS',
+  'baked-potato': 'LDS', 'roasted-potatoes': 'LDS', 'air-fried-wedges': 'LDS', 'breakfast-potatoes': 'B', 'sweet-potato': 'BLDS',
 };
 
 // Breakfast foods are recognised by what they are, wherever they were logged.
@@ -108,11 +113,13 @@ const KINDS = [
   ['bites', /nugget|tender|wing|strip|popcorn chicken/i],
   ['pizza', /pizza|calzone|stromboli/i],
   ['meat', /burger|bacon|sausage|ribs|steak|nugget|chicken|beef|pork|hot dog|brat|patty|ham\b|salami|pepperoni|wing|fried/i],
+  ['potato', /potato|wedge|fries|tots|hash ?brown|spud/i],
   ['fried', /fries|fried|crispy|onion ring|tots|chips|hash brown|nacho/i],
   ['egg', /egg|omelet|omelette|scramble|breakfast|mcmuffin|quiche|benedict/i],
   ['cheese', /cheese|pizza|quesadilla|mac\b|queso|lasagna|alfredo|cheesy/i],
   ['baked', /bagel|biscuit|croissant|toast|bread|bun\b|roll\b|sandwich/i],
 ];
+const KIND_SPECIFIC = ['drink', 'creamy', 'sweet', 'burger', 'taco', 'bites', 'pizza', 'potato'];
 const kindsOf = (food) => KINDS.filter(([, re]) => re.test(`${food.name || ''} ${food.category || ''}`)).map(([k]) => k);
 
 // What the nutrient numbers say, for the amount that was logged.
@@ -182,7 +189,7 @@ export function analyze(food, n, meal = n, day = null, slot = '') {
   const mk = mealKey(food, slot);
   const pool = SWAPS.filter((sw) => suits(sw, mk));
 
-  const swaps = pool.map((sw) => {
+  const swapsAll = pool.map((sw) => {
     const gains = keys
       .filter((k) => (sw.nutrients[k] ?? 0) <= (n[k] ?? 0) * 0.5 && (n[k] ?? 0) - (sw.nutrients[k] ?? 0) >= (k === 'sodium' || k === 'cholesterol' ? 50 : 3))
       .map((k) => ({ k, by: (n[k] ?? 0) - (sw.nutrients[k] ?? 0) }));
@@ -192,9 +199,34 @@ export function analyze(food, n, meal = n, day = null, slot = '') {
     return { sw, gains, score: gains.length * 2 + fit * 3 + bonus - (sw.nutrients.kcal > n.kcal ? 4 : 0) };
   })
     .filter((x) => x.gains.length)
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.score - a.score);
+  // When we know what it is (a burger, a potato side, a shake), stay with that kind of food.
+  const kindFirst = swapsAll.filter((x) => x.sw.tags.some((t) => KIND_SPECIFIC.includes(t) && kinds.includes(t)));
+  const swaps = (kindFirst.length ? kindFirst : swapsAll)
     .slice(0, 3)
     .map(({ sw, gains }) => ({ ...sw, gain: gains.map(({ k, by }) => `${amount(by, CONCERNS[k].unit)} ${CONCERNS[k].less}`).join(' · ') }));
+
+  // No nutrient-based swap? Offer something of the same kind that is lighter or has more fiber or protein
+  // (a potato side gets baked or roasted potatoes, a burger gets a leaner burger), never an unrelated food.
+  if (swaps.length < 2) {
+    const have = new Set(swaps.map((x) => x.id));
+    const specific = kinds.filter((k) => !['snack', 'meat', 'cheese', 'baked', 'fried', 'egg'].includes(k));
+    const lines = (sw) => {
+      const parts = [];
+      const kcalLess = (n.kcal ?? 0) - sw.nutrients.kcal;
+      if (kcalLess >= 40) parts.push(`${amount(kcalLess, 'kcal')} fewer`);
+      if (sw.nutrients.fiber - (n.fiber ?? 0) >= 1.5) parts.push(`+${amount(sw.nutrients.fiber - (n.fiber ?? 0), 'g')} fiber`);
+      if (sw.nutrients.protein - (n.protein ?? 0) >= 3) parts.push(`+${amount(sw.nutrients.protein - (n.protein ?? 0), 'g')} protein`);
+      return parts;
+    };
+    pool
+      .filter((sw) => !have.has(sw.id) && sw.tags.some((t) => specific.includes(t)))
+      .map((sw) => ({ sw, parts: lines(sw) }))
+      .filter((x) => x.parts.length)
+      .sort((a, b) => b.parts.length - a.parts.length || a.sw.nutrients.kcal - b.sw.nutrients.kcal)
+      .slice(0, 3 - swaps.length)
+      .forEach(({ sw, parts }) => swaps.push({ ...sw, gain: parts.slice(0, 2).join(' · ') }));
+  }
 
   const taken = new Set(swaps.map((x) => x.id));
   const adds = [];
