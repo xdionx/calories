@@ -1,0 +1,89 @@
+# Publishes both copies of the app to GitHub Pages in one go:
+#   main    -> https://xdionx.github.io/calories/        (live)
+#   staging -> https://xdionx.github.io/calories/test/   (test)
+# Runs whenever either branch changes, so pushing to one never takes the other down.
+# Needs Settings -> Pages -> Source set to "GitHub Actions".
+# GitHub only lets main publish to Pages, so a push to staging just asks for a
+# fresh run on main, which then publishes both.
+name: Publish live and test sites
+
+on:
+  push:
+    branches: [main, staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  from-staging:
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get live (main)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: _site
+
+      - name: Get test (staging)
+        id: staging
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          ref: staging
+          path: _site/test
+
+      - name: Mark the test copy
+        if: steps.staging.outcome == 'success'
+        run: |
+          cd _site/test
+          echo "window.FUEL_ENV = 'test';" > env.js
+          # Its own name on the home screen, so it is never mistaken for the live app.
+          python3 - <<'PY'
+          import json
+          p = 'manifest.webmanifest'
+          m = json.load(open(p))
+          m['name'] = 'Fuel Log TEST'
+          m['short_name'] = 'Fuel TEST'
+          m['theme_color'] = '#b45309'
+          json.dump(m, open(p, 'w'), indent=2)
+          PY
+          sed -i 's|<meta name="apple-mobile-web-app-title" content="Fuel Log">|<meta name="apple-mobile-web-app-title" content="Fuel TEST">|; s|<meta name="theme-color" content="#0f766e">|<meta name="theme-color" content="#b45309">|' index.html
+          # Keep the test site out of search results.
+          sed -i 's|<head>|<head>\n  <meta name="robots" content="noindex">|' index.html
+
+      - name: Clean up
+        run: rm -rf _site/.git _site/.github _site/test/.git _site/test/.github
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
