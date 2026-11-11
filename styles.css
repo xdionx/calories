@@ -719,3 +719,4 @@ html.env-test .topbar { padding-top: 8px; }
 .settings-back { text-decoration: none; font-weight: 600; padding: 6px 0 0; }
 .settings-section { display: flex; flex-direction: column; gap: 14px; }
 .section-title { font-size: 1.4rem; margin: 0 2px; }
+.build-line { text-align: center; margin: -4px 0 0; font-variant-numeric: tabular-nums; }

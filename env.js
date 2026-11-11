@@ -3,3 +3,4 @@
 // 'test' by .github/workflows/pages.yml when it is published, so the same
 // code can tell the two apart. Don't change it by hand.
 window.FUEL_ENV = 'live';
+// The publish workflow appends window.FUEL_BUILD = { n, sha } here.

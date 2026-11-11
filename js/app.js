@@ -804,6 +804,7 @@ function showSettingsSection(section) {
   const open = SETTINGS_SECTIONS.includes(section) ? section : '';
   ui.settingsSection = open;
   $('#settings-home').hidden = Boolean(open);
+  $('#build-line').hidden = Boolean(open);
   $('#settings-back').hidden = !open;
   $$('#view-settings .settings-section').forEach((el) => (el.hidden = el.dataset.section !== open));
   if (!open) renderSettingsSummary();
@@ -836,6 +837,8 @@ function initSettingsSwipeBack() {
 }
 
 function renderSettingsSummary() {
+  const b = window.FUEL_BUILD;
+  $('#build-line').textContent = b ? `Fuel Log build ${b.n} (${b.sha})` : '';
   const { goals, settings } = store.getState();
   const a = sync.getAccount();
   const set = (k, t) => { const el = $(`[data-summary="${k}"]`); if (el) el.textContent = t; };
