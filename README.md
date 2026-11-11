@@ -27,6 +27,19 @@ python3 -m http.server 8080
 
 The camera only works on `https://` (or `localhost`), so to use it on a phone, host the folder on any static host with HTTPS, for example GitHub Pages, Netlify or Cloudflare Pages. On the phone, use "Add to Home Screen" to install it like an app.
 
+## Test and live sites
+
+| | Branch | Address |
+|---|---|---|
+| Live | `main` | https://xdionx.github.io/calories/ |
+| Test | `staging` | https://xdionx.github.io/calories/test/ |
+
+- New work goes to `staging` first (pull requests target `staging`). Merging one updates the test site within a minute or two.
+- To go live, open a pull request from `staging` into `main` (https://github.com/xdionx/calories/compare/main...staging) and merge it.
+- `.github/workflows/pages.yml` publishes both sites together whenever either branch changes. GitHub Pages must be set to **Settings → Pages → Source: GitHub Actions**.
+- The test site shows an orange "Test version" banner, installs to the home screen as "Fuel TEST", and keeps its own browser storage (`js/env-boot.js` prefixes every key with `test:`), so it never touches the live log on the same phone.
+- It uses its own Supabase project (`TEST_URL` / `TEST_KEY` in `js/config.js`). Until those are filled in it runs device-only, with no sign-in or Garmin.
+
 ## Accounts and sync
 
 Sync uses [Supabase](https://supabase.com) (free tier) for sign-in and a single database table. The app keeps working offline: changes are saved on the device first and upload when there's a connection. Each log entry, custom food, and your goals/settings/recent list sync separately, so edits on two devices merge instead of overwriting each other (the newest change to the same item wins).
