@@ -10,12 +10,13 @@ function roleOf(f) {
   const name = (f.name || '').toLowerCase();
   if (/dessert|treat/.test(cat) || /mcflurry|frosty|shake|sundae|cone/.test(name)) return 'dessert';
   if (/drink|beverage/.test(cat)) return 'drink';
-  if (/breakfast/.test(cat) || /breakfast|mcmuffin|egg|biscuit|hotcake|pancake|omelet|scramble|croissan|bagel/.test(name)) return /hash brown/.test(name) ? 'side' : 'breakfast';
+  if (/breakfast/.test(cat) || /breakfast|mcmuffin|\beggs?\b|biscuit|hotcake|pancake|omelet|scramble|croissan|bagel/.test(name)) return /hash brown/.test(name) ? 'side' : 'breakfast';
   if (/salad|soup/.test(cat)) return 'salad';
   if (/pizza|crust|deep dish/.test(cat) || /pizza/.test(name)) return 'pizza';
   if (/nugget|tender|strip|wing|bites/.test(name)) return 'bites';
   if (/side|tots|breads|dip|sauce|dressing/.test(cat) || /fries|hash brown|tots/.test(name)) return 'side';
   if (/breakfast/.test(cat)) return 'breakfast';
+  if (/sandwich|little john|unwich|\bsubs?\b/.test(cat)) return 'sandwich';
   if (/burger/.test(cat) || /burger|sandwich|wrap|club|blt|mcchicken|filet|whopper|baconator|single|double|stack|mcmuffin|biscuit|croissant/.test(name)) return 'sandwich';
   return cat || 'other';
 }
@@ -56,7 +57,7 @@ export async function menuAlternatives(food, one) {
       const worth = kcalCut >= 0.2 || satCut >= 0.3 || (sugarCut >= 0.4 && (one.sugar ?? 0) >= 15);
       // Better macros: protein per calorie should go up, not just calories down.
       const dens = c.kcal > 0 && one.protein > 0 ? Math.min(c.protein / c.kcal / (one.protein / one.kcal), 1.6) : 1;
-      return { m, kcalCut, satCut, sodiumCut, sugarCut, worth, keep, score: Math.min(kcalCut, 0.6) + Math.min(satCut, 0.5) + 0.5 * sodiumCut + 0.5 * sugarCut + 0.6 * keep + 1.0 * dens };
+      return { m, kcalCut, satCut, sodiumCut, sugarCut, worth, keep, score: (m.category === food.category ? 0.4 : 0) + Math.min(kcalCut, 0.6) + Math.min(satCut, 0.5) + 0.5 * sodiumCut + 0.5 * sugarCut + 0.6 * keep + 1.0 * dens };
     })
     .filter((x) => x.worth && x.kcalCut > 0 && x.keep >= 0.5)
     .sort((a, b) => b.score - a.score)
