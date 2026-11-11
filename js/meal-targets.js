@@ -3,8 +3,14 @@
 // later", never as a failure. The split is the user's to change in Settings.
 import { MEALS } from './store.js';
 
+// Default split, from published guidance for a day of three meals plus snacks:
+// breakfast 25-30%, lunch 35-40%, dinner 25-30% and 5-10% for snacks (Omni Calculator's
+// meal calorie guide, which cites Institute of Medicine and Polish National Institute of
+// Public Health material). A registered dietitian's piece (TODAY, July 2025) agrees that
+// breakfast should be about 25-30% of the day. We use the middle of each range.
 // Snacks are one small allowance for the whole day, not tied to a time.
-export const DEFAULT_SPLIT = { Breakfast: 28, Lunch: 32, Dinner: 32, Snacks: 8 };
+export const DEFAULT_SPLIT = { Breakfast: 27, Lunch: 38, Dinner: 27, Snacks: 8 };
+export const RANGES = { Breakfast: [25, 30], Lunch: [35, 40], Dinner: [25, 30], Snacks: [5, 10] };
 
 export const enabled = (settings) => settings.mealTargets !== false;
 
