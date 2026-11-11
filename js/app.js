@@ -115,6 +115,7 @@ function renderToday() {
   ring.style.strokeDasharray = `${circ}`;
   ring.style.strokeDashoffset = `${circ * (1 - pct)}`;
   ring.classList.toggle('over', left < 0);
+  renderGarminSync();
 
   $('#macro-bars').innerHTML = MACROS.map((m) => macroBar(m, totals[m.key] || 0, goals[m.key])).join('') + caffeineBar(totals.caffeine);
 
@@ -933,6 +934,38 @@ function renderGarmin() {
   authStatus('#garmin-status', msg, kind);
 }
 
+// Sync button under the ring on Today: only there when Garmin is connected
+// (key saved and signed in). Pulls the day being viewed, whichever it is.
+function renderGarminSync() {
+  const btn = $('#garmin-sync');
+  const show = garmin.hasKey() && Boolean(sync.getAccount().user);
+  btn.hidden = !show;
+  if (!show) return;
+  const syncing = garmin.status.state === 'syncing';
+  const future = ui.date > store.todayKey();
+  btn.disabled = syncing || future;
+  btn.classList.toggle('syncing', syncing);
+  btn.querySelector('span').textContent = syncing ? 'Syncing…' : 'Garmin';
+  const day = ui.date === store.todayKey() ? 'today' : dayLabel(ui.date);
+  const label = future ? "Garmin can't sync a day that hasn't happened yet" : `Sync Garmin for ${day}`;
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+}
+
+async function syncGarminDay() {
+  const date = ui.date;
+  if (date > store.todayKey()) return;
+  const day = date === store.todayKey() ? 'today' : dayLabel(date);
+  try {
+    const r = await garmin.pull(date, date);
+    if (!r.days) return toast(`Garmin had no calories for ${day} yet`);
+    const kept = store.burnFor(date)?.source === 'manual' ? ' (kept the calories burned you typed in)' : '';
+    toast(`Synced Garmin for ${day}${kept}`);
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
 async function pullGarmin(days = 14) {
   const end = store.todayKey();
   try {
@@ -1393,6 +1426,7 @@ function bind() {
     }
   };
   $('#garmin-pull').onclick = () => pullGarmin();
+  $('#garmin-sync').onclick = syncGarminDay;
   $('#garmin-forget').onclick = async () => {
     if (!confirm('Remove the Garmin key from your account? Every device stops pulling from Garmin. Calories already pulled stay in your log.')) return;
     try {
@@ -1514,6 +1548,7 @@ sync.onChange((a) => {
     renderAccount();
     renderGarmin();
   }
+  renderGarminSync();
   if (a.user && a.user.id !== lastUserId) garmin.refreshAround(ui.date);
   lastUserId = a.user?.id || null;
 });
@@ -1526,6 +1561,7 @@ garmin.onChange((st) => {
     renderRecommend();
   }
   if (ui.view === 'today') renderBalance();
+  renderGarminSync();
 });
 
 // Apple Health / Shortcuts: opening
