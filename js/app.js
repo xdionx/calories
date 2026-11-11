@@ -61,8 +61,9 @@ function toast(msg) {
 }
 
 /* ---------------- Navigation ---------------- */
-function showView(view) {
+function showView(view, section = '') {
   if (ui.view === 'recipes' && view === 'recipes') return recipeUI.home();
+  if (view === 'settings') showSettingsSection(section);
   if (ui.view === 'recipes' && view !== 'recipes' && !recipeUI.canLeave()) return;
   ui.view = view;
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== view));
@@ -796,7 +797,60 @@ function renderTrends() {
 }
 
 /* ---------------- Settings ---------------- */
+/* Settings is split into categories: a list first, then one category at a
+   time. Tapping the Settings tab again goes back to the list. */
+const SETTINGS_SECTIONS = ['profile', 'goals', 'display', 'apis'];
+function showSettingsSection(section) {
+  const open = SETTINGS_SECTIONS.includes(section) ? section : '';
+  ui.settingsSection = open;
+  $('#settings-home').hidden = Boolean(open);
+  $('#build-line').hidden = Boolean(open);
+  $('#settings-back').hidden = !open;
+  $$('#view-settings .settings-section').forEach((el) => (el.hidden = el.dataset.section !== open));
+  if (!open) renderSettingsSummary();
+  document.querySelector('main').scrollTo({ top: 0 });
+}
+
+// Swiping right from the left edge of the screen inside a Settings category
+// goes back to the category list, like the back gesture in phone apps.
+function initSettingsSwipeBack() {
+  const view = document;
+  const EDGE = 32;
+  let start = null;
+  view.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    start = e.touches.length === 1 && ui.view === 'settings' && ui.settingsSection && t.clientX <= EDGE ? { x: t.clientX, y: t.clientY } : null;
+  }, { passive: true });
+  view.addEventListener('touchmove', (e) => {
+    if (!start) return;
+    const t = e.touches[0];
+    const dx = t.clientX - start.x;
+    const dy = Math.abs(t.clientY - start.y);
+    if (dy > 40 && dy > dx) start = null; // a scroll, not a swipe
+    else if (dx > 70 && dx > dy * 1.5) {
+      start = null;
+      showSettingsSection('');
+    }
+  }, { passive: true });
+  view.addEventListener('touchend', () => (start = null), { passive: true });
+  view.addEventListener('touchcancel', () => (start = null), { passive: true });
+}
+
+function renderSettingsSummary() {
+  const b = window.FUEL_BUILD;
+  $('#build-line').textContent = b ? `Fuel Log build ${b.n} (${b.sha})` : '';
+  const { goals, settings } = store.getState();
+  const a = sync.getAccount();
+  const set = (k, t) => { const el = $(`[data-summary="${k}"]`); if (el) el.textContent = t; };
+  set('profile', a.user ? `Signed in as ${a.user.email || 'you'}` : 'Account, body details, backup');
+  set('goals', `${Math.round(goals.kcal || 0).toLocaleString()} kcal · ${Math.round(goals.protein || 0)}P ${Math.round(goals.carbs || 0)}C ${Math.round(goals.fat || 0)}F${mealTargets.enabled(settings) ? ' · meal targets on' : ''}`);
+  const t = theme.THEMES.find((x) => x.id === theme.current()) || theme.THEMES[0];
+  set('display', `Look: ${t.name}`);
+  set('apis', `Garmin ${garmin.hasKey() ? 'connected' : 'not set up'} · USDA ${settings.usdaApiKey ? 'your key' : 'demo key'}`);
+}
+
 function renderSettings() {
+  renderSettingsSummary();
   const { goals, settings } = store.getState();
   const gf = $('#goals-form');
   for (const k of ['kcal', 'protein', 'carbs', 'fat']) gf.elements[k].value = goals[k];
@@ -925,7 +979,7 @@ function renderGarmin() {
   const st = garmin.status;
   let msg = '';
   let kind = '';
-  if (!signedIn) msg = 'Sign in above to use Garmin.';
+  if (!signedIn) msg = 'Sign in under Settings › Profile to use Garmin.';
   else if (st.state === 'syncing') msg = 'Getting calories from Garmin…';
   else if (st.state === 'error') [msg, kind] = [st.message, 'error'];
   else if (garmin.localOnly()) [msg, kind] = [`Your key is saved only on this device, so your other devices can't use it. Paste it again and tap Save key. (${garmin.localOnly()})`, 'error'];
@@ -1197,6 +1251,9 @@ function bind() {
   });
 
   $$('.tabbar button').forEach((b) => (b.onclick = () => showView(b.dataset.nav)));
+  $$('#settings-home .cat-row').forEach((b) => (b.onclick = () => showSettingsSection(b.dataset.section)));
+  $('#settings-back').onclick = () => showSettingsSection('');
+  initSettingsSwipeBack();
 
   $('#meals').addEventListener('click', (e) => {
     const add = e.target.closest('[data-add-meal]');
@@ -1543,7 +1600,7 @@ store.subscribe((_state, source) => {
 let lastUserId = null;
 sync.onChange((a) => {
   // Opened from a password reset email: take them to the new-password form.
-  if (a.recovering && ui.view !== 'settings') showView('settings');
+  if (a.recovering && (ui.view !== 'settings' || ui.settingsSection !== 'profile')) showView('settings', 'profile');
   if (ui.view === 'settings') {
     renderAccount();
     renderGarmin();
@@ -1595,7 +1652,7 @@ document.addEventListener('error', (e) => {
 bind();
 bindAccount();
 recipeUI.init({ openFood, toast });
-groceryUI.init({ toast, goSettings: () => showView('settings') });
+groceryUI.init({ toast, goSettings: () => showView('settings', 'profile') });
 sync.init();
 renderDate();
 renderToday();
