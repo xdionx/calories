@@ -1,8 +1,8 @@
 // Offline support: the app shell is cached; food database calls always go to
 // the network (and fail gracefully when offline).
-const CACHE = 'fuel-log-v43';
+const CACHE = 'fuel-log-v44';
 const SHELL = [
-  './', 'index.html', 'styles.css', 'themes.css', 'js/theme.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png', 'favicon.ico',
+  './', 'index.html', 'styles.css', 'themes.css', 'js/theme.js', 'js/meal-targets.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png', 'favicon.ico',
   'js/app.js', 'js/store.js', 'js/sync.js', 'js/garmin.js', 'js/targets.js', 'js/trends.js', 'js/config.js', 'js/nutrients.js', 'js/scanner.js',
   'js/recipes.js', 'js/recipe-ui.js', 'js/label.js', 'js/ocr.js', 'js/swaps.js', 'js/swaps-menu.js', 'js/watch.js', 'js/recipe-share.js', 'js/groceries.js', 'js/household.js', 'js/grocery-ui.js',
   'js/providers/index.js', 'js/providers/openfoodfacts.js', 'js/providers/usda.js',

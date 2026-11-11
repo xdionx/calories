@@ -16,6 +16,7 @@ import * as ocr from './ocr.js';
 import * as targets from './targets.js';
 import * as trends from './trends.js';
 import * as theme from './theme.js';
+import * as mealTargets from './meal-targets.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -121,9 +122,13 @@ function renderToday() {
   $('#meals').innerHTML = MEALS.map((meal) => {
     const list = entries.filter((e) => e.meal === meal);
     const kcal = list.reduce((s, e) => s + (e.nutrients.kcal || 0), 0);
+    const settings = store.getState().settings;
+    const target = mealTargets.enabled(settings) ? mealTargets.targetFor(meal, goals.kcal, settings) : 0;
+    const ms = mealTargets.status(kcal, target, meal);
     return `
       <div class="card meal">
-        <div class="card-head"><h2>${meal}</h2><span class="meal-kcal">${round(kcal).toLocaleString()} kcal</span></div>
+        <div class="card-head"><h2>${meal}</h2><span class="meal-kcal">${round(kcal).toLocaleString()}${target ? ` / ${target.toLocaleString()}` : ''} kcal</span></div>
+        ${ms ? `<div class="meal-target ${ms.state}"><div class="bar"><i style="width:${Math.min(ms.pct, 1) * 100}%"></i></div><small>${esc(ms.text)}</small></div>` : ''}
         ${list.length ? list.map((e) => entryRow(e, mealSum(list))).join('') : '<div class="empty">Nothing logged yet.</div>'}
         <button class="btn small add-to-meal" data-add-meal="${meal}">+ Add food</button>
       </div>`;
@@ -797,9 +802,28 @@ function renderSettings() {
   gf.elements.restingKcal.value = goals.restingKcal || '';
   $('#api-form').elements.usdaApiKey.value = settings.usdaApiKey || '';
   updateGoalCheck();
+  renderMealForm();
   renderAccount();
   renderGarmin();
   renderProfile();
+}
+
+/* ---------------- Meal targets ---------------- */
+function renderMealForm() {
+  const { goals, settings } = store.getState();
+  const f = $('#meal-form');
+  f.elements.mealTargets.checked = mealTargets.enabled(settings);
+  const split = mealTargets.getSplit(settings);
+  for (const m of MEALS) if (document.activeElement !== f.elements[m]) f.elements[m].value = Math.round(split[m]);
+  updateMealCheck();
+}
+function updateMealCheck() {
+  const f = $('#meal-form');
+  const { goals } = store.getState();
+  const sum = MEALS.reduce((s, m) => s + (+f.elements[m].value || 0), 0);
+  const draft = { mealSplit: Object.fromEntries(MEALS.map((m) => [m, +f.elements[m].value || 0])) };
+  const kc = MEALS.map((m) => `${m} ${mealTargets.targetFor(m, goals.kcal, draft).toLocaleString()}`).join(' · ');
+  $('#meal-check').textContent = `${sum === 100 ? 'Adds up to 100%.' : `Adds up to ${sum}%; it will be scaled to 100%.`} About ${kc} kcal.`;
 }
 
 /* ---------------- Profile + recommended goals ---------------- */
@@ -1283,6 +1307,17 @@ function bind() {
   }
 
   // Settings
+  $('#meal-form').oninput = updateMealCheck;
+  $('#meal-form').onsubmit = (e) => {
+    e.preventDefault();
+    const f = e.target.elements;
+    store.setSettings({ mealTargets: f.mealTargets.checked, mealSplit: Object.fromEntries(MEALS.map((m) => [m, Math.max(0, +f[m].value || 0)])) });
+    toast('Saved');
+  };
+  $('#meal-reset').onclick = () => {
+    store.setSettings({ mealSplit: { ...mealTargets.DEFAULT_SPLIT } });
+    toast('Back to the usual split');
+  };
   $('#goals-form').oninput = updateGoalCheck;
   $('#goals-form').onsubmit = (e) => {
     e.preventDefault();
