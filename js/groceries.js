@@ -66,6 +66,7 @@ const CATALOG = [
   // Canned and jarred things first, so "diced tomatoes" isn't taken for fresh produce.
   [/\b(tomato sauce|tomato paste|crushed tomato|diced tomato|marinara|passata|canned tomato)/, 'pantry', OZ(15), 'g', 1.6],
   [/\b(canned|can of)\b|\b(kidney|black|pinto|cannellini|garbanzo|navy) beans?|\bchickpeas?|\blentils?/, 'pantry', OZ(15), 'g', 1.3],
+  [/\b(black pepper|ground pepper|white pepper|pepper flakes|red pepper flake|crushed red pepper|peppercorn|bay leaf|bay leaves|allspice|cardamom|coriander|ground ginger|italian seasoning|taco seasoning|dried (oregano|basil|thyme|parsley|rosemary|dill|sage|herbs))/, 'spices', 1, 'ea', 3],
   // Produce
   [/\b(banana)/, 'produce', 6, 'ea', 1.8],
   [/\b(apple)s?\b/, 'produce', 6, 'ea', 5],
@@ -240,6 +241,46 @@ export function mergeLines(lines) {
   return [...rows.values()];
 }
 
+
+/* ---------------- House staples and what the store actually sells ---------------- */
+
+// Things most kitchens already have. They stay on the list (so a missing one can be
+// bought) but start out ticked as "probably have it".
+const STAPLE_SAUCE = /\b(soy sauce|ketchup|mustard|mayo|mayonnaise|hot sauce|vinegar)\b/;
+const NOT_STAPLE = /\b(chocolate chips?|cocoa|chips)\b/;
+export function isStaple(name) {
+  const n = String(name || '').toLowerCase();
+  if (NOT_STAPLE.test(n)) return false;
+  const d = describe(n);
+  return d.known && (d.dept === 'spices' || d.dept === 'baking' || STAPLE_SAUCE.test(n));
+}
+
+// What you pick up in the store: [pattern, container, size]. Recipes ask for a tablespoon;
+// the store sells a jar.
+const PACKS = [
+  [/\b(olive oil|vegetable oil|canola oil|avocado oil|coconut oil|oil)\b/, 'bottle', '16.9 fl oz'],
+  [/\bvinegar\b/, 'bottle', '16 fl oz'],
+  [/\bsalt\b/, 'canister', '26 oz'],
+  [/\bflour\b/, 'bag', '5 lb'],
+  [/\bsugar\b/, 'bag', '4 lb'],
+  [/\b(baking powder|baking soda|cornstarch)\b/, 'container', ''],
+  [/\byeast\b/, 'jar', ''],
+  [/\bvanilla\b/, 'bottle', '2 fl oz'],
+  [/\b(soy sauce|ketchup|mustard|mayo|mayonnaise|hot sauce|dressing)\b/, 'bottle', ''],
+  [/\b(cilantro|parsley|basil|mint|dill|rosemary|thyme|chives|sage)\b/, 'bunch', ''],
+];
+/** "1 jar", "1 bag (5 lb)", "2 bottles" for a row, or '' when the recipe amount is already what you buy. */
+export function packText(name, packages) {
+  const n = String(name || '').toLowerCase();
+  let noun = '';
+  let size = '';
+  for (const [re, nn, ss] of PACKS) if (re.test(n)) { noun = nn; size = ss; break; }
+  if (!noun && describe(n).dept === 'spices') noun = 'jar';
+  if (!noun) return '';
+  const plural = packages > 1 ? (noun === 'bunch' ? 'bunches' : `${noun}s`) : noun;
+  return `${packages} ${plural}${size ? ` (${size})` : ''}`;
+}
+
 /** Estimated cost of a merged row: whole packages needed times the package price. */
 export function estimate(row, store) {
   const d = describe(row.name);
@@ -255,7 +296,8 @@ export function estimate(row, store) {
     if (ml > 0) packages = Math.max(1, Math.ceil(ml / d.pkg - 0.05));
   } else {
     const each = need.ea || 0;
-    if (each > 0) packages = Math.max(1, Math.ceil(each / d.pkg - 0.05));
+    // "2 bay leaves" or "3 cloves" is still one jar; a spice or baking item is never bought by the spoonful.
+    if (each > 0 && d.dept !== 'spices' && d.dept !== 'baking') packages = Math.max(1, Math.ceil(each / d.pkg - 0.05));
   }
   const price = Math.round(packages * d.price * f * 100) / 100;
   return { price, packages, known: d.known };
@@ -266,7 +308,7 @@ export function estimate(row, store) {
  * lines: every needed line (from meals and typed items); have: Set of keys already checked off.
  * Returns { sections: [{ dept, label, total, items: [...] }], total }.
  */
-export function buildList(lines, { store = 'typical', have = new Set() } = {}) {
+export function buildList(lines, { store = 'typical', have = new Set(), buy = new Set() } = {}) {
   const profile = getStore(store);
   const rows = mergeLines(lines).map((row) => {
     const d = describe(row.name);
@@ -277,7 +319,10 @@ export function buildList(lines, { store = 'typical', have = new Set() } = {}) {
       qtyText: row.parts.map((p) => formatQty(p.qty, p.unit)).filter(Boolean).join(' + '),
       price: est.price,
       guess: !est.known,
-      checked: have.has(row.key),
+      staple: isStaple(row.name),
+      buyText: packText(row.name, est.packages),
+      // Staples start out ticked ("probably have it") until someone says they need to buy one.
+      checked: have.has(row.key) || (isStaple(row.name) && !buy.has(row.key)),
     };
   });
   const sections = profile.order

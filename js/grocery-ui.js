@@ -86,7 +86,8 @@ function neededLines() {
 function renderList() {
   const storeId = currentStore();
   const have = new Set(hh.list('have:').map((h) => h.key));
-  const list = buildList(neededLines(), { store: storeId, have });
+  const buy = new Set(hh.list('buy:').map((h) => h.key));
+  const list = buildList(neededLines(), { store: storeId, have, buy });
   $('#gl-total').textContent = list.count ? `${money(list.left)} left · ${money(list.total)} total` : '';
   if (!list.count) {
     $('#gl-list').innerHTML = '<p class="gl-empty">Nothing on the list yet.</p>';
@@ -101,7 +102,7 @@ function renderList() {
       ${items.map((i) => `
         <div class="gl-item ${i.checked ? 'done' : ''}" data-key="${esc(i.key)}">
           <button type="button" class="tick" data-tick aria-label="Got it">✓</button>
-          <div class="what"><b>${esc(i.name)}</b><small>${[i.qtyText, i.sources.length ? `for ${esc(i.sources.join(', '))}` : '', i.by && !i.sources.length ? `added by ${esc(i.by)}` : ''].filter(Boolean).join(' · ')}</small></div>
+          <div class="what"><b>${esc(i.name)}${i.staple ? ` <span class="gl-have">${buy.has(i.key) || have.has(i.key) ? 'staple' : 'probably have it'}</span>` : ''}</b><small>${[i.buyText ? `buy ${esc(i.buyText)}${i.qtyText ? ` (recipe needs ${esc(i.qtyText)})` : ''}` : i.qtyText, i.sources.length ? `for ${esc(i.sources.join(', '))}` : '', i.by && !i.sources.length ? `added by ${esc(i.by)}` : ''].filter(Boolean).join(' · ')}</small></div>
           <span class="cost">${i.guess ? '~' : ''}${money(i.price)}</span>
           ${i.manualIds.length ? `<button type="button" class="gl-x" data-remove-item="${esc(i.manualIds.join(','))}" aria-label="Remove">✕</button>` : ''}
         </div>`).join('')}
@@ -226,9 +227,17 @@ function bind() {
     }
     const row = e.target.closest('.gl-item');
     if (row && e.target.closest('[data-tick]')) {
-      const id = `have:${row.dataset.key}`;
-      if (hh.get(id)) hh.remove(id);
-      else hh.put(id, { key: row.dataset.key });
+      const key = row.dataset.key;
+      const id = `have:${key}`;
+      const bid = `buy:${key}`;
+      if (row.classList.contains('done')) {
+        // Un-tick. For a staple that was assumed, this means "no, I need to buy it".
+        hh.remove(id);
+        if (row.querySelector('.gl-have')) hh.put(bid, { key });
+      } else {
+        hh.put(id, { key });
+        hh.remove(bid);
+      }
     }
   });
   $('#gl-compare').onclick = () => {
@@ -255,7 +264,7 @@ function bind() {
   };
   $('#gl-clear').onclick = () => {
     if (!confirm('Start a new week? This clears the meals, the other items and the checkmarks for everyone sharing this list.')) return;
-    for (const p of ['meal:', 'item:', 'have:']) hh.removeAll(p);
+    for (const p of ['meal:', 'item:', 'have:', 'buy:']) hh.removeAll(p);
   };
 
   $('#gl-house-btn').onclick = () => {
