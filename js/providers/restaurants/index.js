@@ -16,6 +16,7 @@ import { jurassictacos } from './jurassictacos.js';
 import { littlecaesars } from './littlecaesars.js';
 import { dominos } from './dominos.js';
 import { chickfila } from './chickfila.js';
+import { jimmyjohns } from './jimmyjohns.js';
 
 export const RESTAURANTS = [
   mobettahs,
@@ -23,6 +24,7 @@ export const RESTAURANTS = [
   littlecaesars,
   dominos,
   chickfila,
+  jimmyjohns,
   mcdonalds,
   wendys,
   tacobell,

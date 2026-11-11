@@ -7,7 +7,7 @@ const SHELL = [
   'js/recipes.js', 'js/recipe-ui.js', 'js/label.js', 'js/ocr.js', 'js/swaps.js', 'js/swaps-menu.js', 'js/watch.js', 'js/recipe-share.js', 'js/groceries.js', 'js/household.js', 'js/grocery-ui.js',
   'js/providers/index.js', 'js/providers/openfoodfacts.js', 'js/providers/usda.js',
   'js/providers/restaurants/index.js', 'js/providers/restaurants/provider.js', 'js/providers/restaurants/sample-menus.js',
-  'js/providers/restaurants/dominos.js', 'js/providers/restaurants/jurassictacos.js', 'js/providers/restaurants/littlecaesars.js', 'js/providers/restaurants/mobettahs.js',
+  'js/providers/restaurants/dominos.js', 'js/providers/restaurants/jimmyjohns.js', 'js/providers/restaurants/jurassictacos.js', 'js/providers/restaurants/littlecaesars.js', 'js/providers/restaurants/mobettahs.js',
   'vendor/zxing.min.js', 'vendor/supabase.js',
 ];
 

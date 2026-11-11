@@ -53,8 +53,8 @@ const SWAPS = [
   s('string-cheese', 'String cheese (part-skim)', '1 stick (28 g)', ['cheese', 'snack'], 80, 7, 1, 5, 3, 0, 0, 180, 15),
   s('avocado-toast', 'Whole-wheat toast with avocado', '1 slice + 1/4 avocado', ['baked', 'egg', 'cheese'], 150, 5, 17, 8, 1.2, 5, 2, 130, 0),
   s('turkey-burger', 'Turkey burger on a whole-wheat bun', '1 burger (about 170 g)', ['burger', 'meat'], 350, 28, 30, 12, 3, 4, 5, 450, 80),
-  s('chicken-sandwich', 'Grilled chicken sandwich', '1 sandwich (about 190 g)', ['burger', 'meat', 'baked'], 380, 35, 38, 8, 1.5, 3, 6, 900, 85),
-  s('veggie-burger', 'Veggie burger on a bun', '1 burger (about 170 g)', ['burger', 'cheese'], 330, 15, 42, 11, 2, 7, 6, 600, 0),
+  s('chicken-sandwich', 'Grilled chicken sandwich', '1 sandwich (about 190 g)', ['burger', 'sandwich', 'meat', 'baked'], 380, 35, 38, 8, 1.5, 3, 6, 900, 85),
+  s('veggie-burger', 'Veggie burger on a bun', '1 burger (about 170 g)', ['burger', 'sandwich', 'cheese'], 330, 15, 42, 11, 2, 7, 6, 600, 0),
   s('thin-pizza', 'Thin-crust veggie pizza', '2 slices', ['pizza', 'cheese'], 360, 16, 44, 14, 6, 4, 6, 760, 25),
   s('turkey-dog', 'Turkey hot dog in a whole-wheat bun', '1 hot dog', ['burger', 'meat'], 200, 11, 24, 8, 2, 3, 4, 580, 40),
   s('chicken-tacos', 'Chicken tacos on corn tortillas', '3 tacos with salsa and cabbage', ['taco', 'meat'], 330, 28, 36, 9, 2.5, 5, 3, 520, 70),
@@ -62,13 +62,16 @@ const SWAPS = [
   s('baked-tenders', 'Oven-baked chicken tenders', '3 tenders (about 130 g)', ['bites', 'fried', 'meat'], 280, 26, 18, 11, 2, 1, 1, 520, 75),
   s('smoothie', 'Banana, berry and Greek yogurt smoothie', '16 oz, made at home', ['creamy', 'sweet', 'drink'], 250, 15, 40, 2, 0.8, 5, 26, 60, 5),
   s('yogurt-parfait', 'Greek yogurt parfait with berries and oats', '1 cup', ['creamy', 'sweet'], 220, 16, 30, 4, 1.5, 4, 16, 70, 8),
-  s('egg-muffin', 'Egg and veggie English muffin', '1 sandwich, whole wheat', ['egg', 'baked', 'meat'], 280, 20, 28, 10, 3.5, 4, 4, 480, 190),
+  s('egg-muffin', 'Egg and veggie English muffin', '1 sandwich, whole wheat', ['egg', 'baked', 'meat', 'sandwich'], 280, 20, 28, 10, 3.5, 4, 4, 480, 190),
   s('veggie-scramble', 'Veggie egg scramble with whole-wheat toast', '2 eggs + 1 slice', ['egg', 'meat', 'baked'], 270, 18, 20, 13, 4, 4, 3, 420, 330),
   s('breakfast-burrito', 'Egg and black bean breakfast burrito', '1 small whole-wheat burrito', ['egg', 'meat', 'taco', 'baked'], 300, 20, 32, 10, 3.5, 7, 2, 520, 190),
   s('baked-potato', 'Baked potato with Greek yogurt and chives', '1 medium (173 g) + 2 tbsp yogurt', ['potato', 'fried', 'baked'], 180, 6, 38, 0.5, 0.2, 4, 2.5, 25, 1),
   s('roasted-potatoes', 'Roasted potatoes with olive oil and herbs', '1 cup (about 150 g)', ['potato', 'fried'], 160, 3, 28, 4.5, 0.7, 3.5, 1.5, 150, 0),
   s('air-fried-wedges', 'Air-fried potato wedges', '1 cup (about 150 g)', ['potato', 'fried'], 140, 3, 27, 2.5, 0.4, 3.5, 1.5, 200, 0),
   s('breakfast-potatoes', 'Roasted breakfast potatoes with peppers and onions', '1 cup (about 150 g)', ['potato', 'egg', 'baked'], 150, 3, 27, 3.5, 0.5, 3.5, 3, 140, 0),
+  s('turkey-sandwich', 'Turkey and veggie sandwich on whole-wheat bread', '1 sandwich, mustard and no mayo', ['sandwich', 'meat', 'baked'], 320, 26, 38, 6, 1.5, 6, 6, 760, 45),
+  s('lettuce-wraps', 'Turkey and avocado lettuce wraps', '2 wraps', ['sandwich', 'meat'], 230, 24, 8, 12, 2.5, 4, 2, 520, 50),
+  s('veggie-hummus-pita', 'Veggie and hummus whole-wheat pita', '1 pita', ['sandwich', 'baked', 'cheese'], 300, 12, 46, 8, 1, 8, 5, 520, 0),
   s('side-salad', 'Side salad with vinaigrette', '1.5 cups', ['snack'], 80, 2, 8, 5, 0.7, 3, 3, 150, 0),
   s('almonds', 'Almonds', '1 oz (about 23 nuts)', ['snack', 'sweet'], 164, 6, 6, 14, 1.1, 3.5, 1.2, 0, 0),
 ];
@@ -83,7 +86,7 @@ const MEALS_OF = {
   'carrots-hummus': 'LS', chickpeas: 'S', 'egg-whites': 'B', yogurt: 'BS', cottage: 'BS', 'string-cheese': 'S',
   'avocado-toast': 'BS', 'turkey-burger': 'LD', 'chicken-sandwich': 'LD', 'veggie-burger': 'LD', 'thin-pizza': 'LD',
   'turkey-dog': 'LD', 'chicken-tacos': 'LD', 'burrito-bowl': 'LD', 'baked-tenders': 'LD', smoothie: 'BS',
-  'yogurt-parfait': 'B', 'egg-muffin': 'B', 'veggie-scramble': 'B', 'breakfast-burrito': 'B', 'side-salad': 'LD', almonds: 'BS',
+  'yogurt-parfait': 'B', 'egg-muffin': 'B', 'veggie-scramble': 'B', 'breakfast-burrito': 'B', 'side-salad': 'LD', almonds: 'BS', 'turkey-sandwich': 'LD', 'lettuce-wraps': 'LD', 'veggie-hummus-pita': 'LD',
   'baked-potato': 'LDS', 'roasted-potatoes': 'LDS', 'air-fried-wedges': 'LDS', 'breakfast-potatoes': 'B', 'sweet-potato': 'BLDS',
 };
 
@@ -108,6 +111,7 @@ const KINDS = [
   ['drink', /soda|coke|pepsi|sprite|fanta|lemonade|juice|punch|dr\.? ?pepper|tea\b|latte|mocha|frappe|coffee|energy drink|smoothie/i],
   ['creamy', /shake|frosty|mcflurry|ice cream|cone|sundae|pudding|custard|gelato|frozen yogurt|whipped/i],
   ['sweet', /cookie|brownie|cake|pie\b|candy|chocolate|donut|doughnut|syrup|pancake|waffle|cinnamon|muffin|pastry|danish|granola|cereal|jam|honey|sugar|bar\b/i],
+  ['sandwich', /sandwich|\bsub\b|\bsubs\b|hoagie|panini|gyro|\bclub\b|\bblt\b|wrap\b|unwich/i],
   ['burger', /burger|baconator|whopper|big mac|quarter pounder|cheeseburger|patty|hot dog|sloppy joe/i],
   ['taco', /taco|burrito|quesadilla|enchilada|chalupa|nachos?\b/i],
   ['bites', /nugget|tender|wing|strip|popcorn chicken/i],
@@ -119,7 +123,7 @@ const KINDS = [
   ['cheese', /cheese|pizza|quesadilla|mac\b|queso|lasagna|alfredo|cheesy/i],
   ['baked', /bagel|biscuit|croissant|toast|bread|bun\b|roll\b|sandwich/i],
 ];
-const KIND_SPECIFIC = ['drink', 'creamy', 'sweet', 'burger', 'taco', 'bites', 'pizza', 'potato'];
+const KIND_SPECIFIC = ['sandwich', 'drink', 'creamy', 'sweet', 'burger', 'taco', 'bites', 'pizza', 'potato'];
 const kindsOf = (food) => KINDS.filter(([, re]) => re.test(`${food.name || ''} ${food.category || ''}`)).map(([k]) => k);
 
 // What the nutrient numbers say, for the amount that was logged.
