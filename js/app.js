@@ -810,6 +810,31 @@ function showSettingsSection(section) {
   document.querySelector('main').scrollTo({ top: 0 });
 }
 
+// Swiping right from the left edge of the screen inside a Settings category
+// goes back to the category list, like the back gesture in phone apps.
+function initSettingsSwipeBack() {
+  const view = document;
+  const EDGE = 32;
+  let start = null;
+  view.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    start = e.touches.length === 1 && ui.view === 'settings' && ui.settingsSection && t.clientX <= EDGE ? { x: t.clientX, y: t.clientY } : null;
+  }, { passive: true });
+  view.addEventListener('touchmove', (e) => {
+    if (!start) return;
+    const t = e.touches[0];
+    const dx = t.clientX - start.x;
+    const dy = Math.abs(t.clientY - start.y);
+    if (dy > 40 && dy > dx) start = null; // a scroll, not a swipe
+    else if (dx > 70 && dx > dy * 1.5) {
+      start = null;
+      showSettingsSection('');
+    }
+  }, { passive: true });
+  view.addEventListener('touchend', () => (start = null), { passive: true });
+  view.addEventListener('touchcancel', () => (start = null), { passive: true });
+}
+
 function renderSettingsSummary() {
   const { goals, settings } = store.getState();
   const a = sync.getAccount();
@@ -1225,6 +1250,7 @@ function bind() {
   $$('.tabbar button').forEach((b) => (b.onclick = () => showView(b.dataset.nav)));
   $$('#settings-home .cat-row').forEach((b) => (b.onclick = () => showSettingsSection(b.dataset.section)));
   $('#settings-back').onclick = () => showSettingsSection('');
+  initSettingsSwipeBack();
 
   $('#meals').addEventListener('click', (e) => {
     const add = e.target.closest('[data-add-meal]');
