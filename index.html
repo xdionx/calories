@@ -332,12 +332,25 @@
 
     <!-- SETTINGS -->
     <section class="view" id="view-settings" data-view="settings" hidden>
+      <nav class="card settings-home" id="settings-home" aria-label="Settings categories">
+        <button class="cat-row" type="button" data-section="profile"><span class="cat-ico" aria-hidden="true">👤</span><span class="cat-text"><b>Profile</b><span class="muted small" data-summary="profile"></span></span><span class="cat-go" aria-hidden="true">›</span></button>
+        <button class="cat-row" type="button" data-section="goals"><span class="cat-ico" aria-hidden="true">🎯</span><span class="cat-text"><b>Goals &amp; targets</b><span class="muted small" data-summary="goals"></span></span><span class="cat-go" aria-hidden="true">›</span></button>
+        <button class="cat-row" type="button" data-section="display"><span class="cat-ico" aria-hidden="true">🎨</span><span class="cat-text"><b>Display</b><span class="muted small" data-summary="display"></span></span><span class="cat-go" aria-hidden="true">›</span></button>
+        <button class="cat-row" type="button" data-section="apis"><span class="cat-ico" aria-hidden="true">🔌</span><span class="cat-text"><b>APIs</b><span class="muted small" data-summary="apis"></span></span><span class="cat-go" aria-hidden="true">›</span></button>
+      </nav>
+      <button class="link-btn settings-back" type="button" id="settings-back" hidden>‹ Settings</button>
+
+      <div class="settings-section" data-section="display" hidden>
+        <h2 class="section-title">Display</h2>
       <div class="card form" id="theme-card">
         <h2>Look</h2>
         <p class="muted small">Pick how the app looks. This is saved on this device only.</p>
         <div class="theme-grid" id="theme-grid"></div>
       </div>
+      </div>
 
+      <div class="settings-section" data-section="profile" hidden>
+        <h2 class="section-title">Profile</h2>
       <div class="card form" id="account-card">
         <h2>Account</h2>
 
@@ -395,6 +408,18 @@
         <div class="recommend" id="recommend"></div>
       </form>
 
+      <div class="card form">
+        <h2>Your data</h2>
+        <p class="muted small" id="data-note">Everything is stored on this device. Export a backup to keep a copy or move it to another browser.</p>
+        <div class="btn-row">
+          <button class="btn" id="export-btn">Export backup</button>
+          <label class="btn">Import backup<input type="file" id="import-file" accept="application/json,.json" hidden></label>
+        </div>
+      </div>
+      </div>
+
+      <div class="settings-section" data-section="goals" hidden>
+        <h2 class="section-title">Goals &amp; targets</h2>
       <form class="card form" id="goals-form">
         <h2>Daily goals</h2>
         <label>Calories <input type="number" name="kcal" min="0" step="10" inputmode="numeric"></label>
@@ -424,10 +449,13 @@
           <button class="btn" type="button" id="meal-reset">Use the usual split</button>
         </div>
       </form>
+      </div>
 
+      <div class="settings-section" data-section="apis" hidden>
+        <h2 class="section-title">APIs</h2>
       <form class="card form" id="garmin-form">
         <h2>Garmin</h2>
-        <p class="muted small">Pull active and resting calories from Garmin Connect to see your daily deficit or surplus. You need to be signed in above.</p>
+        <p class="muted small">Pull active and resting calories from Garmin Connect to see your daily deficit or surplus. You need to be signed in (Settings › Profile).</p>
         <ol class="muted small steps">
           <li>On a computer, open <a href="https://connect.garmin.com/app/settings/personalApiToken" target="_blank" rel="noopener">Garmin Connect → Settings → Personal API</a> and create a key (pick 1 year).</li>
           <li>Copy the key and paste it here. Garmin only shows it once.</li>
@@ -448,15 +476,9 @@
         <label>USDA API key <input type="text" name="usdaApiKey" placeholder="DEMO_KEY" autocomplete="off" spellcheck="false"></label>
         <button class="btn primary" type="submit">Save</button>
       </form>
-
-      <div class="card form">
-        <h2>Your data</h2>
-        <p class="muted small" id="data-note">Everything is stored on this device. Export a backup to keep a copy or move it to another browser.</p>
-        <div class="btn-row">
-          <button class="btn" id="export-btn">Export backup</button>
-          <label class="btn">Import backup<input type="file" id="import-file" accept="application/json,.json" hidden></label>
-        </div>
       </div>
+
+      
     </section>
   </main>
 
