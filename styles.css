@@ -701,6 +701,12 @@ label.field-est input { border-style: dashed; }
   font-size: 0.82rem; line-height: 1.3; text-align: center;
 }
 .env-banner strong { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.75rem; }
+.env-banner { align-items: center; flex-wrap: nowrap; gap: 4px 12px; }
+.env-build {
+  flex: none; padding: 3px 12px; border-radius: 999px; background: #fff; color: #b45309;
+  font-size: 1.15rem; font-weight: 800; letter-spacing: 0.02em; font-variant-numeric: tabular-nums;
+}
+.env-text { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
 html.env-test .topbar { padding-top: 8px; }
 
 /* Settings categories */

@@ -22,10 +22,10 @@
   };
 
   var build = window.FUEL_BUILD;
-  var buildText = build ? ' · Build ' + build.n : '';
   var root = document.documentElement;
   root.classList.add('env-test');
-  document.title = 'TEST ' + (build ? 'b' + build.n + ' ' : '') + '· ' + document.title;
+  // Build first, so it still shows when a tab title gets cut short.
+  document.title = (build ? 'Build ' + build.n + ' · ' : '') + 'TEST · ' + document.title;
 
   function banner() {
     if (document.getElementById('env-banner')) return;
@@ -33,7 +33,8 @@
     b.id = 'env-banner';
     b.className = 'env-banner';
     b.setAttribute('role', 'status');
-    b.innerHTML = '<strong>Test version' + buildText + '</strong><span>Your live app and its log are not touched.</span>';
+    b.innerHTML = (build ? '<b class="env-build">Build ' + build.n + '</b>' : '') +
+      '<span class="env-text"><strong>Test version</strong><span>Your live app and its log are not touched.</span></span>';
     document.body.insertBefore(b, document.body.firstChild);
   }
   if (document.body) banner();
