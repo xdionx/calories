@@ -32,15 +32,21 @@
     <!-- TODAY -->
     <section class="view" id="view-today" data-view="today">
       <div class="card summary">
-        <div class="ring-wrap">
-          <svg viewBox="0 0 120 120" class="ring" aria-hidden="true">
-            <circle cx="60" cy="60" r="52" class="ring-track"/>
-            <circle cx="60" cy="60" r="52" class="ring-fill" id="ring-fill"/>
-          </svg>
-          <div class="ring-text">
-            <div class="ring-num" id="kcal-left">0</div>
-            <div class="ring-sub" id="kcal-left-label">kcal left</div>
+        <div class="ring-col">
+          <div class="ring-wrap">
+            <svg viewBox="0 0 120 120" class="ring" aria-hidden="true">
+              <circle cx="60" cy="60" r="52" class="ring-track"/>
+              <circle cx="60" cy="60" r="52" class="ring-fill" id="ring-fill"/>
+            </svg>
+            <div class="ring-text">
+              <div class="ring-num" id="kcal-left">0</div>
+              <div class="ring-sub" id="kcal-left-label">kcal left</div>
+            </div>
           </div>
+          <button class="garmin-sync" id="garmin-sync" type="button" hidden>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-13.7 5.6M4 12a8 8 0 0 1 13.7-5.6"/><path d="M18 2.5v4h-4M6 21.5v-4h4"/></svg>
+            <span>Garmin</span>
+          </button>
         </div>
         <div class="summary-side">
           <div class="stat"><span>Goal</span><b id="kcal-goal">0</b></div>
