@@ -671,3 +671,12 @@ label.field-est input { border-style: dashed; }
 .theme-swatch i + i { flex: 0 0 22px; height: 60%; }
 
 .gl-have { display: inline-block; font-size: 0.68rem; font-weight: 600; text-transform: none; padding: 1px 7px; margin-left: 4px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); vertical-align: 2px; }
+
+/* Meal targets */
+.meal-target { margin: 2px 0 6px; }
+.meal-target .bar { height: 5px; }
+.meal-target small { display: block; margin-top: 4px; color: var(--muted); font-size: 0.78rem; }
+.meal-target.over .bar > i { background: var(--warn); }
+.meal-target.over small { color: var(--warn); }
+.check { display: flex; align-items: center; gap: 10px; flex-direction: row; }
+.check input { width: auto; min-height: 0; }

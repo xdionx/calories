@@ -399,6 +399,23 @@
         <button class="btn primary" type="submit">Save goals</button>
       </form>
 
+      <form class="card form" id="meal-form">
+        <h2>Meal targets</h2>
+        <p class="muted small">A gentle guide for how much to eat at each meal, from your daily calorie goal. Going over is fine; it just shows so you can balance the rest of the day.</p>
+        <label class="check"><input type="checkbox" name="mealTargets"> Show meal targets on Today</label>
+        <div class="grid2">
+          <label>Breakfast (%) <input type="number" name="Breakfast" min="0" max="100" step="1" inputmode="numeric"></label>
+          <label>Lunch (%) <input type="number" name="Lunch" min="0" max="100" step="1" inputmode="numeric"></label>
+          <label>Dinner (%) <input type="number" name="Dinner" min="0" max="100" step="1" inputmode="numeric"></label>
+          <label>Snacks, whole day (%) <input type="number" name="Snacks" min="0" max="100" step="1" inputmode="numeric"></label>
+        </div>
+        <p class="muted small" id="meal-check"></p>
+        <div class="btn-row">
+          <button class="btn primary" type="submit">Save</button>
+          <button class="btn" type="button" id="meal-reset">Use the usual split</button>
+        </div>
+      </form>
+
       <form class="card form" id="garmin-form">
         <h2>Garmin</h2>
         <p class="muted small">Pull active and resting calories from Garmin Connect to see your daily deficit or surplus. You need to be signed in above.</p>
