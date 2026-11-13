@@ -4,7 +4,7 @@
 // same domain, so it keeps a separately named cache and each copy only clears
 // out its own old caches.
 const TEST = self.registration.scope.includes('/test/');
-const CACHE = (TEST ? 'fuel-log-test-' : 'fuel-log-') + 'v48';
+const CACHE = (TEST ? 'fuel-log-test-' : 'fuel-log-') + 'v49';
 const mine = (k) => TEST ? k.startsWith('fuel-log-test-') : !k.startsWith('fuel-log-test-');
 const SHELL = [
   './', 'index.html', 'env.js', 'js/env-boot.js', 'styles.css', 'themes.css', 'js/theme.js', 'js/meal-targets.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png', 'favicon.ico',
