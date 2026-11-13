@@ -62,7 +62,7 @@ a { color: var(--accent); }
 /* Top bar */
 .topbar {
   flex: none; z-index: 5;
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: center;
   padding: calc(env(safe-area-inset-top) + 8px) 12px 8px;
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(10px);
@@ -621,7 +621,18 @@ label.field-est input { border-style: dashed; }
 #swap-dialog[open] { display: flex; flex-direction: column; gap: 12px; }
 #swap-dialog .swap-panel { margin: 0; }
 
+.date-nav { display: flex; align-items: center; gap: 6px; }
 .date-wrap { display: flex; align-items: center; gap: 2px; }
+.date-nav .date-label { min-width: 7.2em; text-align: center; }
+.day-step { width: 38px; height: 38px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.day-step:hover { background: var(--accent-soft); filter: brightness(0.95); }
+.day-step:active { transform: scale(0.92); }
+/* Day change: Today slides in from the side you moved toward. */
+@keyframes day-in-next { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@keyframes day-in-prev { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+#view-today.day-next { animation: day-in-next .22s ease-out; }
+#view-today.day-prev { animation: day-in-prev .22s ease-out; }
+@media (prefers-reduced-motion: reduce) { #view-today.day-next, #view-today.day-prev { animation: none; } }
 .date-pick { width: 36px; height: 36px; display: grid; place-items: center; color: var(--muted); }
 #date-dialog { padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
 #date-dialog[open] { display: flex; flex-direction: column; gap: 12px; }
