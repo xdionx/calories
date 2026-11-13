@@ -22,12 +22,14 @@
 </head>
 <body>
   <header class="topbar">
-    <button class="icon-btn" id="prev-day" aria-label="Previous day">‹</button>
+    <div class="date-nav">
+    <button class="icon-btn day-step" id="prev-day" aria-label="Previous day"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
     <div class="date-wrap">
       <button class="date-label" id="date-label" aria-label="Jump to today"></button>
       <button class="icon-btn date-pick" id="date-pick" type="button" aria-label="Pick a date"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></button>
     </div>
-    <button class="icon-btn" id="next-day" aria-label="Next day">›</button>
+    <button class="icon-btn day-step" id="next-day" aria-label="Next day"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></button>
+    </div>
   </header>
 
   <main>
