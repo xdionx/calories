@@ -110,8 +110,8 @@ function stepDay(dir, from = dir) {
   v.classList.add(from > 0 ? 'day-next' : 'day-prev');
 }
 
-// On Today, swiping anywhere changes the day: right to left goes to the previous day,
-// left to right goes to the next day. Touches that start on something that scrolls
+// On Today, swiping anywhere changes the day: right to left goes to the next day,
+// left to right goes to the previous day. Touches that start on something that scrolls
 // sideways, or on a form control, are left alone.
 function initDaySwipe() {
   let start = null;
@@ -137,8 +137,8 @@ function initDaySwipe() {
     if (dy > 30 && dy > Math.abs(dx)) start = null; // a scroll, not a swipe
     else if (Math.abs(dx) > 70 && Math.abs(dx) > dy * 1.5) {
       start = null;
-      // Finger moving left = previous day, moving right = next day; the page follows the finger.
-      stepDay(dx < 0 ? -1 : 1, dx < 0 ? 1 : -1);
+      // Finger moving left = next day, moving right = previous day; the page follows the finger.
+      stepDay(dx < 0 ? 1 : -1);
     }
   }, { passive: true });
   document.addEventListener('touchend', () => (start = null), { passive: true });
