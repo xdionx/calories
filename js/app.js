@@ -99,6 +99,52 @@ function setDate(key) {
   garmin.refreshAround(key);
 }
 
+// Move one day back (-1) or forward (1). Today slides in from the right (from = 1) or the left (from = -1);
+// arrows default to the side of the arrow, swipes follow the finger.
+function stepDay(dir, from = dir) {
+  setDate(store.shiftDate(ui.date, dir));
+  const v = $('#view-today');
+  v.classList.remove('day-next', 'day-prev');
+  void v.offsetWidth; // restart the animation on quick repeats
+  v.addEventListener('animationend', () => v.classList.remove('day-next', 'day-prev'), { once: true });
+  v.classList.add(from > 0 ? 'day-next' : 'day-prev');
+}
+
+// On Today, swiping anywhere changes the day: right to left goes to the previous day,
+// left to right goes to the next day. Touches that start on something that scrolls
+// sideways, or on a form control, are left alone.
+function initDaySwipe() {
+  let start = null;
+  const sideScroller = (el) => {
+    for (; el && el !== document.body; el = el.parentElement) {
+      if (el.matches('input, textarea, select, [contenteditable]')) return true;
+      if (el.scrollWidth > el.clientWidth + 2 && /auto|scroll/.test(getComputedStyle(el).overflowX)) return true;
+    }
+    return false;
+  };
+  document.addEventListener('touchstart', (e) => {
+    start = null;
+    if (e.touches.length !== 1 || ui.view !== 'today' || document.querySelector('dialog[open]')) return;
+    if (sideScroller(e.target)) return;
+    const t = e.touches[0];
+    start = { x: t.clientX, y: t.clientY };
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!start) return;
+    const t = e.touches[0];
+    const dx = t.clientX - start.x;
+    const dy = Math.abs(t.clientY - start.y);
+    if (dy > 30 && dy > Math.abs(dx)) start = null; // a scroll, not a swipe
+    else if (Math.abs(dx) > 70 && Math.abs(dx) > dy * 1.5) {
+      start = null;
+      // Finger moving left = previous day, moving right = next day; the page follows the finger.
+      stepDay(dx < 0 ? -1 : 1, dx < 0 ? 1 : -1);
+    }
+  }, { passive: true });
+  document.addEventListener('touchend', () => (start = null), { passive: true });
+  document.addEventListener('touchcancel', () => (start = null), { passive: true });
+}
+
 function renderDate() {
   const today = store.todayKey();
   let label;
@@ -1164,8 +1210,8 @@ function updateGoalCheck() {
 
 /* ---------------- Events ---------------- */
 function bind() {
-  $('#prev-day').onclick = () => setDate(store.shiftDate(ui.date, -1));
-  $('#next-day').onclick = () => setDate(store.shiftDate(ui.date, 1));
+  $('#prev-day').onclick = () => stepDay(-1);
+  $('#next-day').onclick = () => stepDay(1);
   $('#date-label').onclick = () => setDate(store.todayKey());
   // Date dialog: a month calendar that follows what you type, so picking and typing are one step.
   const cal = { y: 0, m: 0, sel: null };
@@ -1271,6 +1317,7 @@ function bind() {
   $$('#settings-home .cat-row').forEach((b) => (b.onclick = () => showSettingsSection(b.dataset.section)));
   $('#settings-back').onclick = () => showSettingsSection('');
   initSettingsSwipeBack();
+  initDaySwipe();
 
   $('#meals').addEventListener('click', (e) => {
     const add = e.target.closest('[data-add-meal]');
