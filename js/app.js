@@ -17,6 +17,7 @@ import * as targets from './targets.js';
 import * as trends from './trends.js';
 import * as theme from './theme.js';
 import * as mealTargets from './meal-targets.js';
+import * as mealsUI from './meals-ui.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -52,12 +53,25 @@ function guessMeal() {
 
 /* ---------------- Toast ---------------- */
 let toastTimer;
-function toast(msg) {
+// `action` ({ label, run }) adds a button, e.g. Undo.
+function toast(msg, action = null) {
   const t = $('#toast');
   t.textContent = msg;
+  if (action) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'toast-act';
+    b.textContent = action.label;
+    b.onclick = () => {
+      t.classList.remove('show');
+      action.run();
+    };
+    t.append(' ', b);
+  }
+  t.classList.toggle('actionable', !!action);
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+  toastTimer = setTimeout(() => t.classList.remove('show'), action ? 5000 : 2400);
 }
 
 /* ---------------- Navigation ---------------- */
@@ -127,12 +141,13 @@ function renderToday() {
     const settings = store.getState().settings;
     const target = mealTargets.enabled(settings) ? mealTargets.targetFor(meal, goals.kcal, settings) : 0;
     const ms = mealTargets.status(kcal, target, meal);
+    const extra = mealsUI.cardExtras(meal, list);
     return `
       <div class="card meal">
         <div class="card-head"><h2>${meal}</h2><span class="meal-kcal">${round(kcal).toLocaleString()}${target ? ` / ${target.toLocaleString()}` : ''} kcal</span></div>
         ${ms ? `<div class="meal-target ${ms.state}"><div class="bar"><i style="width:${Math.min(ms.pct, 1) * 100}%"></i></div><small>${esc(ms.text)}</small></div>` : ''}
-        ${list.length ? list.map((e) => entryRow(e, mealSum(list))).join('') : '<div class="empty">Nothing logged yet.</div>'}
-        <button class="btn small add-to-meal" data-add-meal="${meal}">+ Add food</button>
+        ${list.length ? mealsUI.entriesHtml(list, (e) => entryRow(e, mealSum(list))) : extra.top || '<div class="empty">Nothing logged yet.</div>'}
+        <div class="meal-btns"><button class="btn small add-to-meal" data-add-meal="${meal}">+ Add food</button>${extra.button}</div>
       </div>`;
   }).join('');
 
@@ -505,6 +520,7 @@ function renderDialogMeals() {
 function renderMealTabs() {
   $('#add-meal').innerHTML = MEALS.map((m) =>
     `<button type="button" role="tab" data-meal="${m}" aria-selected="${m === ui.addMeal}" class="${m === ui.addMeal ? 'active' : ''}">${m}</button>`).join('');
+  mealsUI.renderStrip();
 }
 
 /* Search */
@@ -640,6 +656,7 @@ async function filterRestaurant(query) {
 
 /* Recent / My foods */
 function renderMine() {
+  mealsUI.renderMyMeals();
   const { myFoods, recent } = store.getState();
   const recipes = recipeUI.recipeFoods();
   $('#my-recipes-head').hidden = !recipes.length;
@@ -1587,7 +1604,10 @@ function bind() {
 store.subscribe((_state, source) => {
   renderToday();
   if (ui.view === 'trends') renderTrends();
-  if (ui.view === 'add' && source === 'sync' && ui.addTab === 'mine') renderMine();
+  if (ui.view === 'add') {
+    mealsUI.renderStrip();
+    if (ui.addTab === 'mine') renderMine();
+  }
   if (ui.view === 'recipes' && source === 'sync') recipeUI.refresh();
   // Goals or settings arriving from another device: refresh the form unless
   // the user is typing in it.
@@ -1652,6 +1672,16 @@ document.addEventListener('error', (e) => {
 bind();
 bindAccount();
 recipeUI.init({ openFood, toast });
+mealsUI.init({
+  toast,
+  thumb: (f) => thumb(f, 'sm'),
+  getDate: () => ui.date,
+  getView: () => ui.view,
+  getAddMeal: () => ui.addMeal,
+  setAddMeal: (m) => { ui.addMeal = m; },
+  recipeFoods: () => recipeUI.recipeFoods(),
+  renderToday,
+});
 groceryUI.init({ toast, goSettings: () => showView('settings', 'profile') });
 sync.init();
 renderDate();

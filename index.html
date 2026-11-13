@@ -86,12 +86,16 @@
         <span class="muted small">Adding to</span>
         <div class="seg meal-tabs" id="add-meal" role="tablist" aria-label="Meal"></div>
       </div>
+      <div id="meal-strip" class="meal-strip" hidden>
+        <div class="strip-head"><h2>Your meals</h2><span class="muted small" id="meal-strip-hint"></span></div>
+        <div class="strip" id="meal-strip-list"></div>
+      </div>
       <div class="seg" id="add-tabs" role="tablist">
         <button role="tab" data-tab="search" class="active">Search</button>
         <button role="tab" data-tab="scan">Scan</button>
         <button role="tab" data-tab="label">Label</button>
         <button role="tab" data-tab="restaurants">Restaurants</button>
-        <button role="tab" data-tab="mine">Recent</button>
+        <button role="tab" data-tab="mine">Saved</button>
       </div>
 
       <div class="tab" data-tab="search">
@@ -152,6 +156,10 @@
       </div>
 
       <div class="tab" data-tab="mine" hidden>
+        <div class="card-head"><h2>My meals</h2><button class="btn small" type="button" id="my-meals-new">+ New meal</button></div>
+        <ul id="my-meals" class="food-list"></ul>
+        <p class="muted small mine-hint" id="my-meals-hint" hidden>Tap a meal to adjust it before adding. Press and hold to edit or delete.</p>
+        <p class="muted small mine-hint" id="my-meals-empty">Save foods you eat together, like a usual fast food order, and add them all in one tap.</p>
         <div class="card-head" id="my-recipes-head" hidden><h2>My recipes</h2></div>
         <ul id="my-recipes" class="food-list"></ul>
         <div class="card-head"><h2>My foods</h2><button class="btn small" id="new-food">+ Create food</button></div>
@@ -560,6 +568,62 @@
         <button class="btn primary grow" type="button" id="fd-save">Add to log</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Saved meal: new / edit -->
+  <dialog id="sm-dialog" class="sheet">
+    <form id="sm-form">
+      <div class="sheet-head"><h2 id="sm-title">New meal</h2><button class="icon-btn" type="button" id="sm-close" aria-label="Close">✕</button></div>
+      <label>Name <input id="sm-name" autocomplete="off" maxlength="60"></label>
+      <div class="hint" id="sm-name-hint"></div>
+      <div class="field-group"><span class="field-label">Foods in this meal</span>
+        <div class="mbox" id="sm-items"></div>
+        <button class="linkish" type="button" id="sm-more">+ Add more foods</button>
+      </div>
+      <div class="field-group"><span class="field-label">Usually eaten at</span><div class="seg meal-tabs" id="sm-usual" role="tablist" aria-label="Usually eaten at"></div></div>
+      <div class="sumline"><span>Total</span><span id="sm-total"></span></div>
+      <div class="confirm" id="sm-confirm" hidden>
+        <b id="sm-confirm-title"></b>
+        <span>Foods you already logged from it stay in your log. Only the shortcut goes away.</span>
+        <div class="btn-row"><button class="btn small" type="button" id="sm-keep">Keep it</button><button class="btn small danger solid" type="button" id="sm-delete-yes">Delete meal</button></div>
+      </div>
+      <div class="sheet-actions">
+        <button class="btn danger" type="button" id="sm-delete" hidden>Delete</button>
+        <button class="btn primary grow" type="submit" id="sm-save">Save meal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Saved meal: pick several foods -->
+  <dialog id="meal-pick-dialog" class="sheet">
+    <div class="sheet-body">
+      <div class="sheet-head"><h2>Pick foods for a meal</h2><button class="icon-btn" type="button" id="mp-close" aria-label="Close">✕</button></div>
+      <form id="mp-form" class="mp-form"><input type="search" id="mp-search" placeholder="Search foods" autocomplete="off" enterkeyhint="search"></form>
+      <div class="seg small-seg" id="mp-tabs" role="tablist">
+        <button type="button" data-pt="recent" class="active">Recent</button>
+        <button type="button" data-pt="mine">My foods</button>
+        <button type="button" data-pt="restaurants">Restaurants</button>
+        <button type="button" data-pt="search">Search</button>
+      </div>
+      <div class="mp-rest" id="mp-rest" hidden></div>
+      <div class="status" id="mp-status"></div>
+      <ul class="food-list" id="mp-list"></ul>
+      <div class="pickbar"><div class="grow"><b id="mp-count"></b><div class="muted small" id="mp-kcal"></div></div><button class="btn primary" type="button" id="mp-next">Next</button></div>
+    </div>
+  </dialog>
+
+  <!-- Saved meal: add it to the log, adjusted for today -->
+  <dialog id="meal-log-dialog" class="sheet">
+    <div class="sheet-body">
+      <div class="sheet-head"><span id="ml-stack"></span><div class="grow"><h2 id="ml-name"></h2><div class="muted small" id="ml-meta"></div></div><button class="icon-btn" type="button" id="ml-close" aria-label="Close">✕</button></div>
+      <div class="field-group"><span class="field-label">Add to</span><div class="seg meal-tabs" id="ml-meal" role="tablist" aria-label="Meal"></div></div>
+      <div class="field-group"><span class="field-label">Today's portions</span>
+        <div class="mbox" id="ml-items"></div>
+        <div class="hint">Changes here are for today only. The saved meal stays the same.</div>
+      </div>
+      <div class="sumline"><span>Adding</span><span id="ml-total"></span></div>
+      <div class="sheet-actions"><button class="btn" type="button" id="ml-edit">Edit meal</button><button class="btn primary grow" type="button" id="ml-add">Add</button></div>
+    </div>
   </dialog>
 
   <!-- Create custom food -->
