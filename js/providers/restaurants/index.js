@@ -18,6 +18,7 @@ import { dominos } from './dominos.js';
 import { chickfila } from './chickfila.js';
 import { jimmyjohns } from './jimmyjohns.js';
 import { raisingcanes } from './raisingcanes.js';
+import { zupas } from './zupas.js';
 
 export const RESTAURANTS = [
   mobettahs,
@@ -27,6 +28,7 @@ export const RESTAURANTS = [
   chickfila,
   jimmyjohns,
   raisingcanes,
+  zupas,
   mcdonalds,
   wendys,
   tacobell,
