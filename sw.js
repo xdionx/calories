@@ -4,7 +4,7 @@
 // same domain, so it keeps a separately named cache and each copy only clears
 // out its own old caches.
 const TEST = self.registration.scope.includes('/test/');
-const CACHE = (TEST ? 'fuel-log-test-' : 'fuel-log-') + 'v49';
+const CACHE = (TEST ? 'fuel-log-test-' : 'fuel-log-') + 'v50';
 const mine = (k) => TEST ? k.startsWith('fuel-log-test-') : !k.startsWith('fuel-log-test-');
 const SHELL = [
   './', 'index.html', 'env.js', 'js/env-boot.js', 'styles.css', 'themes.css', 'js/theme.js', 'js/meal-targets.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png', 'favicon.ico',
@@ -12,7 +12,7 @@ const SHELL = [
   'js/recipes.js', 'js/recipe-ui.js', 'js/label.js', 'js/ocr.js', 'js/swaps.js', 'js/swaps-menu.js', 'js/watch.js', 'js/recipe-share.js', 'js/groceries.js', 'js/household.js', 'js/grocery-ui.js', 'js/meals-ui.js',
   'js/providers/index.js', 'js/providers/openfoodfacts.js', 'js/providers/usda.js',
   'js/providers/restaurants/index.js', 'js/providers/restaurants/provider.js', 'js/providers/restaurants/sample-menus.js',
-  'js/providers/restaurants/dominos.js', 'js/providers/restaurants/jimmyjohns.js', 'js/providers/restaurants/jurassictacos.js', 'js/providers/restaurants/littlecaesars.js', 'js/providers/restaurants/mobettahs.js',
+  'js/providers/restaurants/dominos.js', 'js/providers/restaurants/jimmyjohns.js', 'js/providers/restaurants/jurassictacos.js', 'js/providers/restaurants/littlecaesars.js', 'js/providers/restaurants/mobettahs.js', 'js/providers/restaurants/raisingcanes.js',
   'vendor/zxing.min.js', 'vendor/supabase.js',
 ];
 
